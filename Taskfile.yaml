@@ -1,0 +1,25 @@
+version: "3"
+
+tasks:
+  # build
+  # dev
+  # install
+  # run-binary
+
+  build:
+    cmds:
+      - go build cmd/main/main.go
+
+  dev:
+    cmds:
+      # live reload version
+      - air -c .air.toml
+
+  install:
+    cmds:
+      - go install ./...
+
+  run-binary:
+    cmds:
+      - task prepare
+      - ./main
