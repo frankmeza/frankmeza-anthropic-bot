@@ -206,7 +206,7 @@ Write a complete blog post that would fit well on a developer's personal website
 	// Example: openai.CreateChatCompletion() or anthropic equivalent
 
 	// For now, return an error so it falls back to template
-	fmt.Sprintln(prompt)
+	fmt.Println(prompt)
 	return "", fmt.Errorf("AI integration not yet implemented")
 }
 
@@ -266,10 +266,7 @@ func (b *BlogBot) formatBlogPostMarkdown(post *BlogPost) string {
 // Helper methods for GitHub operations
 func (b *BlogBot) reactToIssue(issue *github.Issue, reaction string) {
 	ctx := context.Background()
-
-	b.githubClient.Reactions.CreateIssueReaction(ctx, b.owner, b.repo, *issue.Number, &github.Reaction{
-		Content: &reaction,
-	})
+	b.githubClient.Reactions.CreateIssueReaction(ctx, b.owner, b.repo, *issue.Number, reaction)
 }
 
 func (b *BlogBot) commentOnIssue(issue *github.Issue, comment string) {
@@ -357,15 +354,13 @@ func (b *BlogBot) handleIssueComment(issue *github.Issue, comment *github.IssueC
 	// Handle comments on the original issue
 }
 
-func (b *BlogBot) handlePRComment(pr *github.PullRequest, comment *github.PullRequestReviewComment) {
+func (b *BlogBot) handlePRComment(pr *github.PullRequest, comment *github.PullRequestComment) {
 	// Handle comments on PR - this is where the magic happens!
 	commentBody := *comment.Body
 
 	// React with thumbs up to acknowledge
 	ctx := context.Background()
-	b.githubClient.Reactions.CreatePullRequestCommentReaction(ctx, b.owner, b.repo, *comment.ID, &github.Reaction{
-		Content: github.String("👍"),
-	})
+	b.githubClient.Reactions.CreatePullRequestCommentReaction(ctx, b.owner, b.repo, *comment.ID, "👍")
 
 	// Parse the comment for actionable requests
 	if b.isChangeRequest(commentBody) {
@@ -394,9 +389,7 @@ func (b *BlogBot) handlePRComment(pr *github.PullRequest, comment *github.PullRe
 					b.commentOnPR(pr, "Sorry, I had trouble making that change. Could you be more specific?")
 				} else {
 					// React with rocket to show completion
-					b.githubClient.Reactions.CreatePullRequestCommentReaction(ctx, b.owner, b.repo, *comment.ID, &github.Reaction{
-						Content: github.String("🚀"),
-					})
+					b.githubClient.Reactions.CreatePullRequestCommentReaction(ctx, b.owner, b.repo, *comment.ID, "🚀")
 				}
 				break
 			}
@@ -468,6 +461,8 @@ Current blog post content:
 %s
 
 Please return the complete updated blog post with the same frontmatter structure and CSS classes.`, changeRequest, currentContent)
+
+	fmt.Println(prompt)
 
 	// TODO: Replace with actual AI API call
 	// For now, just return the original content with a note
@@ -581,6 +576,8 @@ func (b *BlogBot) updateDraftStatus(content string, isDraft bool) string {
 			break
 		}
 	}
+
+	return strings.Join(lines, " ")
 }
 
 func truncate(s string, length int) string {
