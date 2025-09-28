@@ -147,9 +147,7 @@ func (c *Client) ListPullRequestFiles(owner, repo string, prNumber int) ([]*gith
 
 // ReactToIssue adds a reaction to an issue
 func (c *Client) ReactToIssue(owner, repo string, issueNumber int, reaction string) error {
-	_, _, err := c.github.Reactions.CreateIssueReaction(c.ctx, owner, repo, issueNumber, &github.Reaction{
-		Content: github.String(reaction),
-	})
+	_, _, err := c.github.Reactions.CreateIssueReaction(c.ctx, owner, repo, issueNumber, reaction)
 
 	if err != nil {
 		return fmt.Errorf("reacting to issue: %w", err)
@@ -160,9 +158,7 @@ func (c *Client) ReactToIssue(owner, repo string, issueNumber int, reaction stri
 
 // ReactToPRComment adds a reaction to a PR comment
 func (c *Client) ReactToPRComment(owner, repo string, commentID int64, reaction string) error {
-	_, _, err := c.github.Reactions.CreatePullRequestCommentReaction(c.ctx, owner, repo, commentID, &github.Reaction{
-		Content: github.String(reaction),
-	})
+	_, _, err := c.github.Reactions.CreatePullRequestCommentReaction(c.ctx, owner, repo, commentID, reaction)
 
 	if err != nil {
 		return fmt.Errorf("reacting to PR comment: %w", err)

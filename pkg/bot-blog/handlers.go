@@ -93,7 +93,14 @@ func (h *Handler) handleNewIssue(issue *github.Issue) {
 // createBlogPostPR generates a blog post and creates a PR
 func (h *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostRequest) error {
 	// Generate the blog post content using AI
-	content, err := h.aiClient.GenerateBlogPost(request)
+	content, err := h.aiClient.GenerateBlogPost(&botai.BlogPostRequest{
+		Title:  request.Title,
+		Topic:  request.Topic,
+		Points: request.Points,
+		Tags:   request.Tags,
+		Draft:  request.Draft,
+	})
+
 	if err != nil {
 		log.Printf("AI generation failed, using template: %v", err)
 		content = h.generateTemplateContent(request)
