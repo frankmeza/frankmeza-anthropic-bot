@@ -19,7 +19,7 @@ func main() {
 	webhookSecret := os.Getenv("GITHUB_WEBHOOK_SECRET")
 
 	// Validate required environment variables
-	if githubToken == "" || aiAPIKey == "" || owner == "" || repo == "" {
+	if githubToken == "" || aiAPIKey == "" || owner == "" || repo == "" || webhookSecret == "" {
 		log.Fatal("Missing required environment variables")
 	}
 
