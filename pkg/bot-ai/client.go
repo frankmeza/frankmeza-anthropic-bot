@@ -30,8 +30,7 @@ func (c *Client) GenerateBlogPost(request *BlogPostRequest) (string, error) {
 
 	message, err := c.anthropic.Messages.New(context.Background(), anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaude3_7Sonnet20250219,
-		MaxTokens: 2500,
-		// MaxTokens: anthropic.Int(2500),
+		MaxTokens: 5000,
 		Messages: []anthropic.MessageParam{
 			anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
 		},
@@ -60,8 +59,7 @@ func (c *Client) ModifyBlogPost(currentContent, changeRequest string) (string, e
 
 	message, err := c.anthropic.Messages.New(context.Background(), anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaude3_7Sonnet20250219,
-		MaxTokens: 3000,
-		// MaxTokens: anthropic.Int(3000),
+		MaxTokens: 5000,
 		Messages: []anthropic.MessageParam{
 			anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
 		},
