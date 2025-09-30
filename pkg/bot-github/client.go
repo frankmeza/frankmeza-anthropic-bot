@@ -10,39 +10,39 @@ import (
 
 // Client wraps the GitHub API client with convenience methods
 type Client struct {
-	github *github.Client
 	ctx    context.Context
+	github *github.Client
 }
 
 // NewClient creates a new GitHub client with the provided token
 func NewClient(token string) *Client {
-	ctx := context.Background()
+	context := context.Background()
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
-	tc := oauth2.NewClient(ctx, ts)
+	tc := oauth2.NewClient(context, ts)
 
 	return &Client{
+		ctx:    context,
 		github: github.NewClient(tc),
-		ctx:    ctx,
 	}
 }
 
 // CreateBranch creates a new branch from the main branch
-func (c *Client) CreateBranch(owner, repo, branchName string) error {
+func (client *Client) CreateBranch(owner, repo, branchName string) error {
 	// Get the main branch reference
-	mainRef, _, err := c.github.Git.GetRef(c.ctx, owner, repo, "refs/heads/main")
+	mainRef, _, err := client.github.Git.GetRef(client.ctx, owner, repo, "refs/heads/main")
 	if err != nil {
 		return fmt.Errorf("getting main branch: %w", err)
 	}
 
 	// Create new branch reference
 	newRef := &github.Reference{
-		Ref: github.String("refs/heads/" + branchName),
 		Object: &github.GitObject{
 			SHA: mainRef.Object.SHA,
 		},
+		Ref: github.String("refs/heads/" + branchName),
 	}
 
-	_, _, err = c.github.Git.CreateRef(c.ctx, owner, repo, newRef)
+	_, _, err = client.github.Git.CreateRef(client.ctx, owner, repo, newRef)
 	if err != nil {
 		return fmt.Errorf("creating branch: %w", err)
 	}
@@ -51,14 +51,14 @@ func (c *Client) CreateBranch(owner, repo, branchName string) error {
 }
 
 // CreateFile creates a new file in the repository
-func (c *Client) CreateFile(owner, repo, branch, filename, content, message string) error {
-	opts := &github.RepositoryContentFileOptions{
+func (client *Client) CreateFile(owner, repo, branch, filename, content, message string) error {
+	options := &github.RepositoryContentFileOptions{
 		Message: github.String(message),
 		Content: []byte(content),
 		Branch:  github.String(branch),
 	}
 
-	_, _, err := c.github.Repositories.CreateFile(c.ctx, owner, repo, filename, opts)
+	_, _, err := client.github.Repositories.CreateFile(client.ctx, owner, repo, filename, options)
 	if err != nil {
 		return fmt.Errorf("creating file: %w", err)
 	}
@@ -67,15 +67,15 @@ func (c *Client) CreateFile(owner, repo, branch, filename, content, message stri
 }
 
 // UpdateFile updates an existing file in the repository
-func (c *Client) UpdateFile(owner, repo, branch, filename, content, message, sha string) error {
-	opts := &github.RepositoryContentFileOptions{
-		Message: github.String(message),
-		Content: []byte(content),
+func (client *Client) UpdateFile(owner, repo, branch, filename, content, message, sha string) error {
+	options := &github.RepositoryContentFileOptions{
 		Branch:  github.String(branch),
+		Content: []byte(content),
+		Message: github.String(message),
 		SHA:     github.String(sha),
 	}
 
-	_, _, err := c.github.Repositories.UpdateFile(c.ctx, owner, repo, filename, opts)
+	_, _, err := client.github.Repositories.UpdateFile(client.ctx, owner, repo, filename, options)
 	if err != nil {
 		return fmt.Errorf("updating file: %w", err)
 	}
@@ -84,14 +84,14 @@ func (c *Client) UpdateFile(owner, repo, branch, filename, content, message, sha
 }
 
 // DeleteFile deletes a file from the repository
-func (c *Client) DeleteFile(owner, repo, branch, filename, message, sha string) error {
-	opts := &github.RepositoryContentFileOptions{
-		Message: github.String(message),
+func (client *Client) DeleteFile(owner, repo, branch, filename, message, sha string) error {
+	options := &github.RepositoryContentFileOptions{
 		Branch:  github.String(branch),
+		Message: github.String(message),
 		SHA:     github.String(sha),
 	}
 
-	_, _, err := c.github.Repositories.DeleteFile(c.ctx, owner, repo, filename, opts)
+	_, _, err := client.github.Repositories.DeleteFile(client.ctx, owner, repo, filename, options)
 	if err != nil {
 		return fmt.Errorf("deleting file: %w", err)
 	}
@@ -100,7 +100,7 @@ func (c *Client) DeleteFile(owner, repo, branch, filename, message, sha string) 
 }
 
 // CreatePullRequest creates a new pull request
-func (c *Client) CreatePullRequest(owner, repo, title, body, head, base string) (*github.PullRequest, error) {
+func (client *Client) CreatePullRequest(owner, repo, title, body, head, base string) (*github.PullRequest, error) {
 	newPR := &github.NewPullRequest{
 		Title: github.String(title),
 		Head:  github.String(head),
@@ -108,21 +108,21 @@ func (c *Client) CreatePullRequest(owner, repo, title, body, head, base string) 
 		Body:  github.String(body),
 	}
 
-	pr, _, err := c.github.PullRequests.Create(c.ctx, owner, repo, newPR)
+	pullRequest, _, err := client.github.PullRequests.Create(client.ctx, owner, repo, newPR)
 	if err != nil {
 		return nil, fmt.Errorf("creating PR: %w", err)
 	}
 
-	return pr, nil
+	return pullRequest, nil
 }
 
 // GetFileContent retrieves the content of a file from the repository
-func (c *Client) GetFileContent(owner, repo, filename, ref string) (string, string, error) {
-	opts := &github.RepositoryContentGetOptions{
+func (client *Client) GetFileContent(owner, repo, filename, ref string) (string, string, error) {
+	options := &github.RepositoryContentGetOptions{
 		Ref: ref,
 	}
 
-	fileContent, _, _, err := c.github.Repositories.GetContents(c.ctx, owner, repo, filename, opts)
+	fileContent, _, _, err := client.github.Repositories.GetContents(client.ctx, owner, repo, filename, options)
 	if err != nil {
 		return "", "", fmt.Errorf("getting file content: %w", err)
 	}
@@ -136,8 +136,8 @@ func (c *Client) GetFileContent(owner, repo, filename, ref string) (string, stri
 }
 
 // ListPullRequestFiles returns the files changed in a pull request
-func (c *Client) ListPullRequestFiles(owner, repo string, prNumber int) ([]*github.CommitFile, error) {
-	files, _, err := c.github.PullRequests.ListFiles(c.ctx, owner, repo, prNumber, nil)
+func (client *Client) ListPullRequestFiles(owner, repo string, prNumber int) ([]*github.CommitFile, error) {
+	files, _, err := client.github.PullRequests.ListFiles(client.ctx, owner, repo, prNumber, nil)
 	if err != nil {
 		return nil, fmt.Errorf("listing PR files: %w", err)
 	}
@@ -146,8 +146,8 @@ func (c *Client) ListPullRequestFiles(owner, repo string, prNumber int) ([]*gith
 }
 
 // ReactToIssue adds a reaction to an issue
-func (c *Client) ReactToIssue(owner, repo string, issueNumber int, reaction string) error {
-	_, _, err := c.github.Reactions.CreateIssueReaction(c.ctx, owner, repo, issueNumber, reaction)
+func (client *Client) ReactToIssue(owner, repo string, issueNumber int, reaction string) error {
+	_, _, err := client.github.Reactions.CreateIssueReaction(client.ctx, owner, repo, issueNumber, reaction)
 
 	if err != nil {
 		return fmt.Errorf("reacting to issue: %w", err)
@@ -157,8 +157,8 @@ func (c *Client) ReactToIssue(owner, repo string, issueNumber int, reaction stri
 }
 
 // ReactToPRComment adds a reaction to a PR comment
-func (c *Client) ReactToPRComment(owner, repo string, commentID int64, reaction string) error {
-	_, _, err := c.github.Reactions.CreatePullRequestCommentReaction(c.ctx, owner, repo, commentID, reaction)
+func (client *Client) ReactToPRComment(owner, repo string, commentID int64, reaction string) error {
+	_, _, err := client.github.Reactions.CreatePullRequestCommentReaction(client.ctx, owner, repo, commentID, reaction)
 
 	if err != nil {
 		return fmt.Errorf("reacting to PR comment: %w", err)
@@ -168,8 +168,8 @@ func (c *Client) ReactToPRComment(owner, repo string, commentID int64, reaction 
 }
 
 // CommentOnIssue adds a comment to an issue
-func (c *Client) CommentOnIssue(owner, repo string, issueNumber int, comment string) error {
-	_, _, err := c.github.Issues.CreateComment(c.ctx, owner, repo, issueNumber, &github.IssueComment{
+func (client *Client) CommentOnIssue(owner, repo string, issueNumber int, comment string) error {
+	_, _, err := client.github.Issues.CreateComment(client.ctx, owner, repo, issueNumber, &github.IssueComment{
 		Body: github.String(comment),
 	})
 
@@ -181,8 +181,8 @@ func (c *Client) CommentOnIssue(owner, repo string, issueNumber int, comment str
 }
 
 // CommentOnPR adds a comment to a pull request
-func (c *Client) CommentOnPR(owner, repo string, prNumber int, comment string) error {
-	_, _, err := c.github.Issues.CreateComment(c.ctx, owner, repo, prNumber, &github.IssueComment{
+func (client *Client) CommentOnPR(owner, repo string, prNumber int, comment string) error {
+	_, _, err := client.github.Issues.CreateComment(client.ctx, owner, repo, prNumber, &github.IssueComment{
 		Body: github.String(comment),
 	})
 

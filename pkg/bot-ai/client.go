@@ -13,6 +13,15 @@ type Client struct {
 	anthropic *anthropic.Client
 }
 
+// BlogPostRequest represents the data needed to generate a blog post
+type BlogPostRequest struct {
+	Title  string   `json:"title"`
+	Topic  string   `json:"topic"`
+	Points []string `json:"points"`
+	Tags   []string `json:"tags"`
+	Draft  bool     `json:"draft"`
+}
+
 // NewClient creates a new AI client with the provided API key
 func NewClient(apiKey string) *Client {
 	client := anthropic.NewClient(
@@ -25,16 +34,18 @@ func NewClient(apiKey string) *Client {
 }
 
 // GenerateBlogPost creates blog post content based on the request
-func (c *Client) GenerateBlogPost(request *BlogPostRequest) (string, error) {
+func (client *Client) GenerateBlogPost(request *BlogPostRequest) (string, error) {
 	prompt := buildBlogPostPrompt(request)
 
-	message, err := c.anthropic.Messages.New(context.Background(), anthropic.MessageNewParams{
-		Model:     anthropic.ModelClaude3_7Sonnet20250219,
-		MaxTokens: 5000,
-		Messages: []anthropic.MessageParam{
-			anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
-		},
-	})
+	message, err := client.anthropic.Messages.New(
+		context.Background(),
+		anthropic.MessageNewParams{
+			MaxTokens: 5000,
+			Model:     anthropic.ModelClaude3_7Sonnet20250219,
+			Messages: []anthropic.MessageParam{
+				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
+			},
+		})
 
 	if err != nil {
 		return "", fmt.Errorf("anthropic API error: %w", err)
@@ -42,10 +53,6 @@ func (c *Client) GenerateBlogPost(request *BlogPostRequest) (string, error) {
 
 	// Extract text from response
 	if len(message.Content) > 0 {
-		// if textBlock, ok := message.Content[0].(*anthropic.TextBlock); ok {
-		// 	return textBlock.Text, nil
-		// }
-
 		textBlock := message.Content[0]
 		return textBlock.Text, nil
 	}
@@ -54,16 +61,18 @@ func (c *Client) GenerateBlogPost(request *BlogPostRequest) (string, error) {
 }
 
 // ModifyBlogPost updates existing blog post content based on feedback
-func (c *Client) ModifyBlogPost(currentContent, changeRequest string) (string, error) {
+func (client *Client) ModifyBlogPost(currentContent, changeRequest string) (string, error) {
 	prompt := buildModificationPrompt(currentContent, changeRequest)
 
-	message, err := c.anthropic.Messages.New(context.Background(), anthropic.MessageNewParams{
-		Model:     anthropic.ModelClaude3_7Sonnet20250219,
-		MaxTokens: 5000,
-		Messages: []anthropic.MessageParam{
-			anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
-		},
-	})
+	message, err := client.anthropic.Messages.New(
+		context.Background(),
+		anthropic.MessageNewParams{
+			MaxTokens: 5000,
+			Model:     anthropic.ModelClaude3_7Sonnet20250219,
+			Messages: []anthropic.MessageParam{
+				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
+			},
+		})
 
 	if err != nil {
 		return "", fmt.Errorf("anthropic API error: %w", err)
@@ -71,22 +80,9 @@ func (c *Client) ModifyBlogPost(currentContent, changeRequest string) (string, e
 
 	// Extract text from response
 	if len(message.Content) > 0 {
-		// if textBlock, ok := message.Content[0].(*anthropic.TextBlock); ok {
-		// 	return textBlock.Text, nil
-		// }
-
 		textBlock := message.Content[0]
 		return textBlock.Text, nil
 	}
 
 	return "", fmt.Errorf("unexpected response format from Anthropic")
-}
-
-// BlogPostRequest represents the data needed to generate a blog post
-type BlogPostRequest struct {
-	Title  string   `json:"title"`
-	Topic  string   `json:"topic"`
-	Points []string `json:"points"`
-	Tags   []string `json:"tags"`
-	Draft  bool     `json:"draft"`
 }

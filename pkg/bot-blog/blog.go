@@ -21,6 +21,15 @@ type Post struct {
 	Content   string   `yaml:"-"`
 }
 
+// BlogPostRequest represents data needed to create a blog post
+type BlogPostRequest struct {
+	Title  string   `json:"title"`
+	Topic  string   `json:"topic"`
+	Points []string `json:"points"`
+	Tags   []string `json:"tags"`
+	Draft  bool     `json:"draft"`
+}
+
 // NewPost creates a new blog post with default values
 func NewPost(title, topic string, tags []string, isDraft bool) *Post {
 	key := generateKey(title)
@@ -58,10 +67,12 @@ func (p *Post) ToMarkdown() string {
 	buf.WriteString(fmt.Sprintf("key: %s\n", p.Key))
 	buf.WriteString(fmt.Sprintf("language: %s\n", p.Language))
 	buf.WriteString(fmt.Sprintf("summary: %s\n", p.Summary))
+
 	buf.WriteString("tags:\n")
 	for _, tag := range p.Tags {
 		buf.WriteString(fmt.Sprintf("  - %s\n", tag))
 	}
+
 	buf.WriteString(fmt.Sprintf("title: %s\n", p.Title))
 	buf.WriteString(fmt.Sprintf("type: %s\n", p.Type))
 	buf.WriteString("---\n\n")
@@ -79,6 +90,7 @@ func (p *Post) UpdateDraftStatus(isDraft bool) {
 func generateKey(title string) string {
 	key := strings.ToLower(title)
 	key = strings.ReplaceAll(key, " ", "-")
+
 	// Remove special characters, keep only alphanumeric and hyphens
 	var result strings.Builder
 	for _, r := range key {
@@ -109,9 +121,11 @@ func ParseIssueForRequest(title, body string) *BlogPostRequest {
 			if strings.HasPrefix(strings.ToLower(strings.TrimSpace(line)), "tags:") {
 				tagsPart := strings.TrimPrefix(strings.ToLower(line), "tags:")
 				tags := strings.Split(tagsPart, ",")
+
 				for i, tag := range tags {
 					tags[i] = strings.TrimSpace(tag)
 				}
+
 				request.Tags = append(request.Tags, tags...)
 				break
 			}
@@ -119,13 +133,4 @@ func ParseIssueForRequest(title, body string) *BlogPostRequest {
 	}
 
 	return request
-}
-
-// BlogPostRequest represents data needed to create a blog post
-type BlogPostRequest struct {
-	Title  string   `json:"title"`
-	Topic  string   `json:"topic"`
-	Points []string `json:"points"`
-	Tags   []string `json:"tags"`
-	Draft  bool     `json:"draft"`
 }

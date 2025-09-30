@@ -7,25 +7,25 @@ import (
 	"path/filepath"
 	"strings"
 
-	botai "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-ai"
-	botgithub "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-github"
+	botAi "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-ai"
+	botGithub "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-github"
 	"github.com/google/go-github/v57/github"
 )
 
 // Handler manages webhook events and blog operations
 type Handler struct {
-	githubClient  *botgithub.Client
-	aiClient      *botai.Client
+	aiClient      *botAi.Client
+	githubClient  *botGithub.Client
 	owner         string
 	repo          string
 	webhookSecret string
 }
 
 // NewHandler creates a new blog handler
-func NewHandler(githubClient *botgithub.Client, aiClient *botai.Client, owner, repo, webhookSecret string) *Handler {
+func NewHandler(githubClient *botGithub.Client, aiClient *botAi.Client, owner, repo, webhookSecret string) *Handler {
 	return &Handler{
-		githubClient:  githubClient,
 		aiClient:      aiClient,
+		githubClient:  githubClient,
 		owner:         owner,
 		repo:          repo,
 		webhookSecret: webhookSecret,
@@ -33,8 +33,8 @@ func NewHandler(githubClient *botgithub.Client, aiClient *botai.Client, owner, r
 }
 
 // HandleWebhook processes GitHub webhook events
-func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
-	payload, err := github.ValidatePayload(r, []byte(h.webhookSecret))
+func (handler *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
+	payload, err := github.ValidatePayload(r, []byte(handler.webhookSecret))
 	if err != nil {
 		log.Printf("webhook validation failed: %v", err)
 		http.Error(w, "validation failed", http.StatusUnauthorized)
@@ -51,15 +51,15 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	switch e := event.(type) {
 	case *github.IssuesEvent:
 		if *e.Action == "opened" {
-			h.handleNewIssue(e.Issue)
+			handler.handleNewIssue(e.Issue)
 		}
 	case *github.IssueCommentEvent:
 		if *e.Action == "created" {
-			h.handleIssueComment(e.Issue, e.Comment)
+			handler.handleIssueComment(e.Issue, e.Comment)
 		}
 	case *github.PullRequestReviewCommentEvent:
 		if *e.Action == "created" {
-			h.handlePRComment(e.PullRequest, e.Comment)
+			handler.handlePRComment(e.PullRequest, e.Comment)
 		}
 	}
 
@@ -67,7 +67,7 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleNewIssue processes new GitHub issues
-func (h *Handler) handleNewIssue(issue *github.Issue) {
+func (handler *Handler) handleNewIssue(issue *github.Issue) {
 	title := *issue.Title
 	body := *issue.Body
 
@@ -77,23 +77,23 @@ func (h *Handler) handleNewIssue(issue *github.Issue) {
 	}
 
 	// React with thumbs up to acknowledge
-	if err := h.githubClient.ReactToIssue(h.owner, h.repo, *issue.Number, "👍"); err != nil {
+	if err := handler.githubClient.ReactToIssue(handler.owner, handler.repo, *issue.Number, "+1"); err != nil {
 		log.Printf("Error reacting to issue: %v", err)
 	}
 
 	// Parse the request and generate blog post
 	request := ParseIssueForRequest(title, body)
-	if err := h.createBlogPostPR(issue, request); err != nil {
+	if err := handler.createBlogPostPR(issue, request); err != nil {
 		log.Printf("Error creating blog post PR: %v", err)
-		h.githubClient.CommentOnIssue(h.owner, h.repo, *issue.Number,
+		handler.githubClient.CommentOnIssue(handler.owner, handler.repo, *issue.Number,
 			"Sorry, I ran into an error creating the blog post. Could you check the request format?")
 	}
 }
 
 // createBlogPostPR generates a blog post and creates a PR
-func (h *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostRequest) error {
+func (handler *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostRequest) error {
 	// Generate the blog post content using AI
-	content, err := h.aiClient.GenerateBlogPost(&botai.BlogPostRequest{
+	content, err := handler.aiClient.GenerateBlogPost(&botAi.BlogPostRequest{
 		Title:  request.Title,
 		Topic:  request.Topic,
 		Points: request.Points,
@@ -103,7 +103,7 @@ func (h *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostRequest
 
 	if err != nil {
 		log.Printf("AI generation failed, using template: %v", err)
-		content = h.generateTemplateContent(request)
+		content = handler.generateTemplateContent(request)
 	}
 
 	// Create blog post struct
@@ -112,7 +112,7 @@ func (h *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostRequest
 
 	// Create branch
 	branchName := fmt.Sprintf("ai-blog-post-%d", *issue.Number)
-	if err := h.githubClient.CreateBranch(h.owner, h.repo, branchName); err != nil {
+	if err := handler.githubClient.CreateBranch(handler.owner, handler.repo, branchName); err != nil {
 		return fmt.Errorf("creating branch: %w", err)
 	}
 
@@ -121,16 +121,16 @@ func (h *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostRequest
 	markdown := post.ToMarkdown()
 	message := "Add AI-generated blog post"
 
-	if err := h.githubClient.CreateFile(h.owner, h.repo, branchName, filename, markdown, message); err != nil {
+	if err := handler.githubClient.CreateFile(handler.owner, handler.repo, branchName, filename, markdown, message); err != nil {
 		return fmt.Errorf("creating file: %w", err)
 	}
 
 	// Create PR
 	title := fmt.Sprintf("Add blog post: %s", post.Title)
-	body := h.generatePRBody(issue, post)
-	head := fmt.Sprintf("%s:%s", h.owner, branchName)
+	body := handler.generatePRBody(issue, post)
+	head := fmt.Sprintf("%s:%s", handler.owner, branchName)
 
-	_, err = h.githubClient.CreatePullRequest(h.owner, h.repo, title, body, head, "main")
+	_, err = handler.githubClient.CreatePullRequest(handler.owner, handler.repo, title, body, head, "main")
 	if err != nil {
 		return fmt.Errorf("creating PR: %w", err)
 	}
@@ -139,39 +139,40 @@ func (h *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostRequest
 }
 
 // handlePRComment processes comments on pull requests
-func (h *Handler) handlePRComment(pr *github.PullRequest, comment *github.PullRequestComment) {
+func (handler *Handler) handlePRComment(pr *github.PullRequest, comment *github.PullRequestComment) {
 	commentBody := *comment.Body
 
 	// React with thumbs up to acknowledge
-	if err := h.githubClient.ReactToPRComment(h.owner, h.repo, *comment.ID, "👍"); err != nil {
+	if err := handler.githubClient.ReactToPRComment(handler.owner, handler.repo, *comment.ID, "+1"); err != nil {
 		log.Printf("Error reacting to PR comment: %v", err)
 	}
 
 	// Check for draft status changes
-	if h.isDraftStatusChange(commentBody) {
-		if err := h.handleDraftStatusChange(pr, commentBody); err != nil {
+	if handler.isDraftStatusChange(commentBody) {
+		if err := handler.handleDraftStatusChange(pr, commentBody); err != nil {
 			log.Printf("Error changing draft status: %v", err)
 		}
+
 		return
 	}
 
 	// Handle content changes
-	if h.isChangeRequest(commentBody) {
-		if err := h.handleContentChange(pr, commentBody); err != nil {
+	if handler.isChangeRequest(commentBody) {
+		if err := handler.handleContentChange(pr, commentBody); err != nil {
 			log.Printf("Error updating content: %v", err)
-			h.githubClient.CommentOnPR(h.owner, h.repo, *pr.Number,
+			handler.githubClient.CommentOnPR(handler.owner, handler.repo, *pr.Number,
 				"Sorry, I had trouble making that change. Could you be more specific?")
 		} else {
 			// React with rocket to show completion
-			h.githubClient.ReactToPRComment(h.owner, h.repo, *comment.ID, "🚀")
+			handler.githubClient.ReactToPRComment(handler.owner, handler.repo, *comment.ID, "🚀")
 		}
 	}
 }
 
 // handleContentChange modifies blog post content based on feedback
-func (h *Handler) handleContentChange(pr *github.PullRequest, changeRequest string) error {
+func (handler *Handler) handleContentChange(pr *github.PullRequest, changeRequest string) error {
 	// Get files changed in this PR
-	files, err := h.githubClient.ListPullRequestFiles(h.owner, h.repo, *pr.Number)
+	files, err := handler.githubClient.ListPullRequestFiles(handler.owner, handler.repo, *pr.Number)
 	if err != nil {
 		return fmt.Errorf("getting PR files: %w", err)
 	}
@@ -183,20 +184,20 @@ func (h *Handler) handleContentChange(pr *github.PullRequest, changeRequest stri
 				strings.Contains(*file.Filename, "pkg/blog_markdown_content/drafts")) {
 
 			// Get current content
-			currentContent, sha, err := h.githubClient.GetFileContent(h.owner, h.repo, *file.Filename, *pr.Head.Ref)
+			currentContent, sha, err := handler.githubClient.GetFileContent(handler.owner, handler.repo, *file.Filename, *pr.Head.Ref)
 			if err != nil {
 				return fmt.Errorf("getting file content: %w", err)
 			}
 
 			// Use AI to modify the content
-			updatedContent, err := h.aiClient.ModifyBlogPost(currentContent, changeRequest)
+			updatedContent, err := handler.aiClient.ModifyBlogPost(currentContent, changeRequest)
 			if err != nil {
 				return fmt.Errorf("AI modification failed: %w", err)
 			}
 
 			// Update the file
 			message := fmt.Sprintf("Update blog post based on feedback: %s", truncate(changeRequest, 50))
-			if err := h.githubClient.UpdateFile(h.owner, h.repo, *pr.Head.Ref, *file.Filename, updatedContent, message, sha); err != nil {
+			if err := handler.githubClient.UpdateFile(handler.owner, handler.repo, *pr.Head.Ref, *file.Filename, updatedContent, message, sha); err != nil {
 				return fmt.Errorf("updating file: %w", err)
 			}
 
@@ -208,12 +209,12 @@ func (h *Handler) handleContentChange(pr *github.PullRequest, changeRequest stri
 }
 
 // handleDraftStatusChange moves blog posts between drafts and posts directories
-func (h *Handler) handleDraftStatusChange(pr *github.PullRequest, comment string) error {
+func (handler *Handler) handleDraftStatusChange(pr *github.PullRequest, comment string) error {
 	lowerComment := strings.ToLower(comment)
 	shouldPublish := strings.Contains(lowerComment, "publish") || strings.Contains(lowerComment, "ready to publish")
 
 	// Get files in the PR
-	files, err := h.githubClient.ListPullRequestFiles(h.owner, h.repo, *pr.Number)
+	files, err := handler.githubClient.ListPullRequestFiles(handler.owner, handler.repo, *pr.Number)
 	if err != nil {
 		return fmt.Errorf("getting PR files: %w", err)
 	}
@@ -224,13 +225,13 @@ func (h *Handler) handleDraftStatusChange(pr *github.PullRequest, comment string
 				strings.Contains(*file.Filename, "pkg/blog_markdown_content/drafts")) {
 
 			// Get current content
-			currentContent, sha, err := h.githubClient.GetFileContent(h.owner, h.repo, *file.Filename, *pr.Head.Ref)
+			currentContent, sha, err := handler.githubClient.GetFileContent(handler.owner, handler.repo, *file.Filename, *pr.Head.Ref)
 			if err != nil {
 				return fmt.Errorf("getting file content: %w", err)
 			}
 
 			// Update draft status in content
-			updatedContent := h.updateDraftStatus(currentContent, !shouldPublish)
+			updatedContent := handler.updateDraftStatus(currentContent, !shouldPublish)
 
 			// Determine new file path
 			baseName := strings.TrimSuffix(filepath.Base(*file.Filename), ".md")
@@ -243,18 +244,18 @@ func (h *Handler) handleDraftStatusChange(pr *github.PullRequest, comment string
 
 			// Create new file
 			message := fmt.Sprintf("Move blog post to %s", map[bool]string{true: "published", false: "draft"}[shouldPublish])
-			if err := h.githubClient.CreateFile(h.owner, h.repo, *pr.Head.Ref, newFilename, updatedContent, message); err != nil {
+			if err := handler.githubClient.CreateFile(handler.owner, handler.repo, *pr.Head.Ref, newFilename, updatedContent, message); err != nil {
 				return fmt.Errorf("creating new file: %w", err)
 			}
 
 			// Delete old file
-			if err := h.githubClient.DeleteFile(h.owner, h.repo, *pr.Head.Ref, *file.Filename, "Remove old blog post file", sha); err != nil {
+			if err := handler.githubClient.DeleteFile(handler.owner, handler.repo, *pr.Head.Ref, *file.Filename, "Remove old blog post file", sha); err != nil {
 				return fmt.Errorf("deleting old file: %w", err)
 			}
 
 			// Comment on success
 			statusMsg := map[bool]string{true: "published", false: "moved to drafts"}[shouldPublish]
-			h.githubClient.CommentOnPR(h.owner, h.repo, *pr.Number, fmt.Sprintf("✅ Blog post %s!", statusMsg))
+			handler.githubClient.CommentOnPR(handler.owner, handler.repo, *pr.Number, fmt.Sprintf("✅ Blog post %s!", statusMsg))
 
 			break
 		}
@@ -265,12 +266,12 @@ func (h *Handler) handleDraftStatusChange(pr *github.PullRequest, comment string
 
 // Helper methods
 
-func (h *Handler) handleIssueComment(issue *github.Issue, comment *github.IssueComment) {
+func (handler *Handler) handleIssueComment(issue *github.Issue, comment *github.IssueComment) {
 	// Handle comments on the original issue if needed
 	// For now, we mainly focus on PR comments
 }
 
-func (h *Handler) isChangeRequest(comment string) bool {
+func (handler *Handler) isChangeRequest(comment string) bool {
 	changeWords := []string{
 		"can you", "could you", "please", "add", "remove", "change", "update",
 		"make it", "make this", "more", "less", "fix", "improve", "rewrite",
@@ -285,7 +286,7 @@ func (h *Handler) isChangeRequest(comment string) bool {
 	return false
 }
 
-func (h *Handler) isDraftStatusChange(comment string) bool {
+func (handler *Handler) isDraftStatusChange(comment string) bool {
 	lowerComment := strings.ToLower(comment)
 	return strings.Contains(lowerComment, "publish") ||
 		strings.Contains(lowerComment, "ready to publish") ||
@@ -293,7 +294,7 @@ func (h *Handler) isDraftStatusChange(comment string) bool {
 		strings.Contains(lowerComment, "make it a draft")
 }
 
-func (h *Handler) updateDraftStatus(content string, isDraft bool) string {
+func (handler *Handler) updateDraftStatus(content string, isDraft bool) string {
 	lines := strings.Split(content, "\n")
 
 	for i, line := range lines {
@@ -306,7 +307,7 @@ func (h *Handler) updateDraftStatus(content string, isDraft bool) string {
 	return strings.Join(lines, "\n")
 }
 
-func (h *Handler) generatePRBody(issue *github.Issue, post *Post) string {
+func (handler *Handler) generatePRBody(issue *github.Issue, post *Post) string {
 	return fmt.Sprintf(`🤖 AI-generated blog post based on issue #%d
 
 **Title:** %s
@@ -318,7 +319,7 @@ This blog post was automatically generated. Feel free to comment with any change
 Closes #%d`, *issue.Number, post.Title, post.Summary, strings.Join(post.Tags, ", "), *issue.Number)
 }
 
-func (h *Handler) generateTemplateContent(request *BlogPostRequest) string {
+func (handler *Handler) generateTemplateContent(request *BlogPostRequest) string {
 	return fmt.Sprintf(`{.text-lg .text-gray-600 .mb-8}
 Hey there! Let's dive into %s - it's one of those topics that's both fascinating and practical.
 
