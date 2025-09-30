@@ -1,44 +1,37 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 
-	botAi "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-ai"
-	botBlog "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-blog"
-	botGithub "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-github"
+	botai "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-ai"
+	botblog "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-blog"
+	botcode "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-code"
+	botgithub "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-github"
 )
 
 func main() {
-	// Load environment variables
-	aiApiKey := os.Getenv("AI_API_KEY")
 	githubToken := os.Getenv("GITHUB_TOKEN")
+	aiAPIKey := os.Getenv("AI_API_KEY")
 	owner := os.Getenv("GITHUB_OWNER")
-	repo := os.Getenv("GITHUB_REPO")
+	repoWebsite := os.Getenv("GITHUB_REPO_WEBSITE")
+	repoBot := os.Getenv("GITHUB_REPO_BOT")
 	webhookSecret := os.Getenv("GITHUB_WEBHOOK_SECRET")
 
-	// Validate required environment variables
-	if githubToken == "" || aiApiKey == "" || owner == "" || repo == "" || webhookSecret == "" {
-		fmt.Printf("isMissingAiApiKey %v", aiApiKey == "")
-		fmt.Printf("isMissingGithubToken %v", githubToken == "")
-		fmt.Printf("isMissingOwner %v", owner == "")
-		fmt.Printf("isMissingRepo %v", repo == "")
-		fmt.Printf("isMissingWebhookSecret %v", webhookSecret == "")
-
+	if githubToken == "" || aiAPIKey == "" || owner == "" || repoWebsite == "" || repoBot == "" {
 		log.Fatal("Missing required environment variables")
 	}
 
-	// Initialize clients
-	aiClient := botAi.NewClient(aiApiKey)
-	githubClient := botGithub.NewClient(githubToken)
+	githubClient := botgithub.NewClient(githubToken)
+	aiClient := botai.NewClient(aiAPIKey)
 
-	// Initialize blog handler
-	blogHandler := botBlog.NewHandler(githubClient, aiClient, owner, repo, webhookSecret)
+	blogHandler := botblog.NewHandler(githubClient, aiClient, owner, repoWebsite, webhookSecret)
+	codeHandler := botcode.NewHandler(githubClient, aiClient, owner, repoBot)
 
-	// Set up HTTP routes
-	http.HandleFunc("/webhook", blogHandler.HandleWebhook)
+	router := newRouter(blogHandler, codeHandler, repoWebsite, repoBot)
+
+	http.HandleFunc("/webhook", router.HandleWebhook)
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
@@ -50,6 +43,52 @@ func main() {
 	}
 
 	log.Printf("AI Blog Bot starting on :%s", port)
-	log.Printf("Monitoring repo: %s/%s", owner, repo)
+	log.Printf("Monitoring repos: %s/%s (blog), %s/%s (code)", owner, repoWebsite, owner, repoBot)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+
+// router handles routing webhooks to the appropriate handler
+type router struct {
+	blogHandler *botblog.Handler
+	codeHandler *botcode.Handler
+	repoWebsite string
+	repoBot     string
+}
+
+func newRouter(blogHandler *botblog.Handler, codeHandler *botcode.Handler, repoWebsite, repoBot string) *router {
+	return &router{
+		blogHandler: blogHandler,
+		codeHandler: codeHandler,
+		repoWebsite: repoWebsite,
+		repoBot:     repoBot,
+	}
+}
+
+func (rt *router) HandleWebhook(w http.ResponseWriter, r *http.Request) {
+	repoName := r.Header.Get("X-GitHub-Repository")
+
+	if repoName == "" {
+		log.Printf("Warning: X-GitHub-Repository header not found, attempting to parse payload")
+		rt.blogHandler.HandleWebhook(w, r)
+		return
+	}
+
+	switch {
+	case contains(repoName, rt.repoWebsite):
+		log.Printf("Routing to blog handler for repo: %s", repoName)
+		rt.blogHandler.HandleWebhook(w, r)
+
+	case contains(repoName, rt.repoBot):
+		log.Printf("Routing to code handler for repo: %s", repoName)
+		rt.codeHandler.HandleWebhook(w, r)
+
+	default:
+		log.Printf("Unknown repository: %s", repoName)
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) > 0 && len(substr) > 0 &&
+		(s == substr || s[len(s)-len(substr):] == substr)
 }
