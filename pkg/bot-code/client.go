@@ -1,4 +1,3 @@
-// client.go
 package botgithub
 
 import (
