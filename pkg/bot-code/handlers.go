@@ -85,7 +85,15 @@ func (h *Handler) HandleNewIssue(issue *github.Issue) {
 
 // createCodeChangePR generates code and creates a PR
 func (h *Handler) createCodeChangePR(issue *github.Issue, request *ChangeRequest) error {
-	content, err := h.aiClient.GenerateCode(request)
+	codeRequest := &botai.CodeRequest{
+		Title:       request.Title,
+		Description: request.Description,
+		FileType:    request.FileType,
+		TargetPath:  request.TargetPath,
+		Tags:        request.Tags,
+	}
+
+	content, err := h.aiClient.GenerateCode(codeRequest)
 	if err != nil {
 		return fmt.Errorf("AI code generation failed: %w", err)
 	}

@@ -1,7 +1,10 @@
 package botai
 
 import (
+	"context"
 	"fmt"
+
+	"github.com/anthropics/anthropic-sdk-go"
 )
 
 // CodeRequest represents a request to generate code
@@ -17,22 +20,23 @@ type CodeRequest struct {
 func (c *Client) GenerateCode(request *CodeRequest) (string, error) {
 	prompt := buildCodeGenerationPrompt(request)
 
-	message, err := c.anthropic.Messages.New(c.ctx, anthropicgo.MessageNewParams{
-		Model:     anthropicgo.ModelClaude35Sonnet20241022,
-		MaxTokens: anthropicgo.Int(4000),
-		Messages: []anthropicgo.MessageParam{
-			anthropicgo.NewUserMessage(anthropicgo.NewTextBlock(prompt)),
-		},
-	})
+	message, err := c.anthropic.Messages.New(
+		context.Background(),
+		anthropic.MessageNewParams{
+			MaxTokens: 5000,
+			Model:     anthropic.ModelClaude3_7Sonnet20250219,
+			Messages: []anthropic.MessageParam{
+				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
+			},
+		})
 
 	if err != nil {
 		return "", fmt.Errorf("anthropic API error: %w", err)
 	}
 
 	if len(message.Content) > 0 {
-		if textBlock, ok := message.Content[0].(*anthropicgo.TextBlock); ok {
-			return textBlock.Text, nil
-		}
+		textBlock := message.Content[0]
+		return textBlock.Text, nil
 	}
 
 	return "", fmt.Errorf("unexpected response format from Anthropic")
@@ -42,22 +46,23 @@ func (c *Client) GenerateCode(request *CodeRequest) (string, error) {
 func (c *Client) ModifyCode(currentContent, changeRequest string) (string, error) {
 	prompt := buildCodeModificationPrompt(currentContent, changeRequest)
 
-	message, err := c.anthropic.Messages.New(c.ctx, anthropicgo.MessageNewParams{
-		Model:     anthropicgo.ModelClaude35Sonnet20241022,
-		MaxTokens: anthropicgo.Int(4000),
-		Messages: []anthropicgo.MessageParam{
-			anthropicgo.NewUserMessage(anthropicgo.NewTextBlock(prompt)),
-		},
-	})
+	message, err := c.anthropic.Messages.New(
+		context.Background(),
+		anthropic.MessageNewParams{
+			MaxTokens: 5000,
+			Model:     anthropic.ModelClaude3_7Sonnet20250219,
+			Messages: []anthropic.MessageParam{
+				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
+			},
+		})
 
 	if err != nil {
 		return "", fmt.Errorf("anthropic API error: %w", err)
 	}
 
 	if len(message.Content) > 0 {
-		if textBlock, ok := message.Content[0].(*anthropicgo.TextBlock); ok {
-			return textBlock.Text, nil
-		}
+		textBlock := message.Content[0]
+		return textBlock.Text, nil
 	}
 
 	return "", fmt.Errorf("unexpected response format from Anthropic")
