@@ -11,6 +11,7 @@ import (
 // Client handles all AI operations using Anthropic's Claude
 type Client struct {
 	anthropic *anthropic.Client
+	ctx       context.Context // Add this if missing
 }
 
 // BlogPostRequest represents the data needed to generate a blog post
@@ -30,6 +31,7 @@ func NewClient(apiKey string) *Client {
 
 	return &Client{
 		anthropic: &client,
+		ctx:       context.Background(), // Add this line
 	}
 }
 
