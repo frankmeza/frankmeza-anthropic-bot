@@ -3,8 +3,6 @@ package botai
 import (
 	"context"
 	"fmt"
-
-	"github.com/anthropics/anthropic-sdk-go"
 )
 
 // CodeRequest represents a request to generate code
@@ -22,13 +20,7 @@ func (c *Client) GenerateCode(request *CodeRequest) (string, error) {
 
 	message, err := c.anthropic.Messages.New(
 		context.Background(),
-		anthropic.MessageNewParams{
-			MaxTokens: 5000,
-			Model:     anthropic.ModelClaude3_7Sonnet20250219,
-			Messages: []anthropic.MessageParam{
-				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
-			},
-		},
+		CreateMessageParams(prompt),
 	)
 
 	if err != nil {
@@ -49,13 +41,7 @@ func (c *Client) ModifyCode(currentContent, changeRequest string) (string, error
 
 	message, err := c.anthropic.Messages.New(
 		context.Background(),
-		anthropic.MessageNewParams{
-			MaxTokens: 5000,
-			Model:     anthropic.ModelClaude3_7Sonnet20250219,
-			Messages: []anthropic.MessageParam{
-				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
-			},
-		},
+		CreateMessageParams(prompt),
 	)
 
 	if err != nil {
