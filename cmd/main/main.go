@@ -1,7 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -12,6 +13,14 @@ import (
 	botgithub "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-github"
 	"github.com/google/go-github/v57/github"
 )
+
+// Helper to mask sensitive tokens
+func maskToken(token string) string {
+	if len(token) < 8 {
+		return "***"
+	}
+	return token[:4] + "..." + token[len(token)-4:]
+}
 
 func main() {
 	githubToken := os.Getenv("GITHUB_TOKEN")
@@ -29,7 +38,7 @@ func main() {
 	aiClient := botai.NewClient(aiAPIKey)
 
 	blogHandler := botblog.NewHandler(githubClient, aiClient, owner, repoWebsite, webhookSecret)
-	codeHandler := botcode.NewHandler(githubClient, aiClient, owner, repoBot)
+	codeHandler := botcode.NewHandler(githubClient, aiClient, owner, repoBot, webhookSecret)
 
 	router := newRouter(blogHandler, codeHandler, repoWebsite, repoBot, webhookSecret)
 
@@ -67,47 +76,44 @@ func newRouter(blogHandler *botblog.Handler, codeHandler *botcode.Handler, repoW
 		webhookSecret: webhookSecret, // Add this
 	}
 }
+
 func (rt *router) HandleWebhook(w http.ResponseWriter, r *http.Request) {
-	// Try to get repo from header first
-	repoName := r.Header.Get("X-GitHub-Repository")
-
-	// If header not found, parse the payload to determine repo
-	if repoName == "" {
-		log.Printf("X-GitHub-Repository header not found, parsing payload...")
-
-		payload, err := github.ValidatePayload(r, []byte(rt.webhookSecret))
-		if err != nil {
-			log.Printf("Webhook validation failed: %v", err)
-			http.Error(w, "validation failed", http.StatusUnauthorized)
-			return
-		}
-
-		event, err := github.ParseWebHook(github.WebHookType(r), payload)
-		if err != nil {
-			log.Printf("Webhook parsing failed: %v", err)
-			http.Error(w, "parsing failed", http.StatusBadRequest)
-			return
-		}
-
-		// Extract repo name from the event
-		fmt.Println("event %v", event)
-		switch e := event.(type) {
-		case *github.IssuesEvent:
-			repoName = *e.Repo.FullName
-		case *github.PullRequestReviewCommentEvent:
-			repoName = *e.Repo.FullName
-		}
-
-		log.Printf("Detected repo from payload: %s", repoName)
+	// Read the body once
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error reading body: %v", err)
+		http.Error(w, "error reading body", http.StatusBadRequest)
+		return
 	}
+
+	// Parse to get repo name (no validation yet)
+	event, err := github.ParseWebHook(github.WebHookType(r), body)
+	if err != nil {
+		log.Printf("Webhook parsing failed: %v", err)
+		http.Error(w, "parsing failed", http.StatusBadRequest)
+		return
+	}
+
+	var repoName string
+	switch e := event.(type) {
+	case *github.IssuesEvent:
+		repoName = *e.Repo.FullName
+	case *github.PullRequestReviewCommentEvent:
+		repoName = *e.Repo.FullName
+	}
+
+	log.Printf("Detected repo: %s", repoName)
+
+	// Recreate the request body for the handler
+	r.Body = io.NopCloser(bytes.NewBuffer(body))
 
 	switch {
 	case contains(repoName, rt.repoWebsite):
-		log.Printf("Routing to blog handler for repo: %s", repoName)
+		log.Printf("Routing to blog handler")
 		rt.blogHandler.HandleWebhook(w, r)
 
 	case contains(repoName, rt.repoBot):
-		log.Printf("Routing to code handler for repo: %s", repoName)
+		log.Printf("Routing to code handler")
 		rt.codeHandler.HandleWebhook(w, r)
 
 	default:
@@ -115,6 +121,59 @@ func (rt *router) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}
 }
+
+// func (rt *router) HandleWebhook(w http.ResponseWriter, r *http.Request) {
+// 	// Try to get repo from header first
+// 	repoName := r.Header.Get("X-GitHub-Repository")
+
+// 	// If header not found, parse the payload to determine repo
+// 	if repoName == "" {
+// 		log.Printf("X-GitHub-Repository header not found, parsing payload...")
+
+// 		payload, err := github.ValidatePayload(r, []byte(rt.webhookSecret))
+// 		if err != nil {
+// 			log.Printf("Webhook validation failed: %v", err)
+// 			http.Error(w, "validation failed", http.StatusUnauthorized)
+// 			return
+// 		}
+
+// 		event, err := github.ParseWebHook(github.WebHookType(r), payload)
+// 		if err != nil {
+// 			log.Printf("Webhook parsing failed: %v", err)
+// 			http.Error(w, "parsing failed", http.StatusBadRequest)
+// 			return
+// 		}
+
+// 		fmt.Printf("event %T", event)
+// 		// Extract repo name from the event
+// 		switch e := event.(type) {
+// 		case *github.IssuesEvent:
+// 			repoName = *e.Repo.FullName
+// 		case *github.IssueCommentEvent:
+// 			repoName = *e.Repo.FullName
+// 		case *github.PullRequestReviewCommentEvent:
+// 			repoName = *e.Repo.FullName
+// 		default:
+// 			repoName = "unknown"
+
+// 			log.Printf("Detected repo from payload: %s", repoName)
+// 		}
+
+// 		switch {
+// 		case contains(repoName, rt.repoWebsite) || repoName == rt.repoWebsite:
+// 			log.Printf("Routing to blog handler for repo: %s", repoName)
+// 			rt.blogHandler.HandleWebhook(w, r)
+
+// 		case contains(repoName, rt.repoBot) || repoName == rt.repoBot:
+// 			log.Printf("Routing to code handler for repo: %s", repoName)
+// 			rt.codeHandler.HandleWebhook(w, r)
+
+// 		default:
+// 			log.Printf("Unknown repository: %s", repoName)
+// 			w.WriteHeader(http.StatusOK)
+// 		}
+// 	}
+// }
 
 func contains(s, substr string) bool {
 	return len(s) > 0 && len(substr) > 0 &&

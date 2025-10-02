@@ -2,6 +2,7 @@ package botcode
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -13,30 +14,43 @@ import (
 
 // Handler manages webhook events and code operations
 type Handler struct {
-	githubClient *botgithub.Client
-	aiClient     *botai.Client
-	owner        string
-	repo         string
+	githubClient  *botgithub.Client
+	aiClient      *botai.Client
+	owner         string
+	repo          string
+	webhookSecret string
 }
 
 // NewHandler creates a new code handler
-func NewHandler(githubClient *botgithub.Client, aiClient *botai.Client, owner, repo string) *Handler {
+func NewHandler(githubClient *botgithub.Client, aiClient *botai.Client, owner, repo, webhookSecret string) *Handler {
 	return &Handler{
-		githubClient: githubClient,
-		aiClient:     aiClient,
-		owner:        owner,
-		repo:         repo,
+		githubClient:  githubClient,
+		aiClient:      aiClient,
+		owner:         owner,
+		repo:          repo,
+		webhookSecret: webhookSecret,
 	}
 }
 
 // HandleWebhook processes GitHub webhook events for code changes
 func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
-	payload, err := github.ValidatePayload(r, []byte(""))
+	// payload, err := github.ValidatePayload(r, []byte(""))
+	// // payload, err := github.ValidatePayload(r, []byte(h.webhookSecret))
+	// if err != nil {
+	// 	log.Printf("webhook validation failed: %v", err)
+	// 	http.Error(w, "validation failed", http.StatusUnauthorized)
+	// 	return
+	// }
+
+	// // Temporarily skip validation for debugging
+	payload, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("webhook validation failed: %v", err)
-		http.Error(w, "validation failed", http.StatusUnauthorized)
+		log.Printf("Error reading body: %v", err)
+		http.Error(w, "error reading body", http.StatusBadRequest)
 		return
 	}
+
+	log.Printf("Received payload of length: %d", len(payload))
 
 	event, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {
@@ -69,7 +83,7 @@ func (h *Handler) HandleNewIssue(issue *github.Issue) {
 		return
 	}
 
-	if err := h.githubClient.ReactToIssue(h.owner, h.repo, *issue.Number, "👍"); err != nil {
+	if err := h.githubClient.ReactToIssue(h.owner, h.repo, *issue.Number, "+1"); err != nil {
 		log.Printf("Error reacting to issue: %v", err)
 	}
 
@@ -129,7 +143,7 @@ func (h *Handler) createCodeChangePR(issue *github.Issue, request *ChangeRequest
 func (h *Handler) HandlePRComment(pr *github.PullRequest, comment *github.PullRequestComment) {
 	commentBody := *comment.Body
 
-	if err := h.githubClient.ReactToPRComment(h.owner, h.repo, *comment.ID, "👍"); err != nil {
+	if err := h.githubClient.ReactToPRComment(h.owner, h.repo, *comment.ID, "+1"); err != nil {
 		log.Printf("Error reacting to PR comment: %v", err)
 	}
 
