@@ -141,3 +141,95 @@ const (
 	MaxConcurrentRequests  = 5
 	DefaultCacheTTL        = 3600
 )
+
+// BotAI specific constants
+const (
+	AIDefaultPrompt           = "Please provide a detailed and helpful response."
+	AISystemRolePrompt        = "You are an AI assistant specialized in providing accurate and helpful information."
+	AIErrorGeneratingResponse = "Error generating AI response"
+	AIResponsePrefix          = "AI Response: "
+	AITokenLimitExceeded      = "Token limit exceeded, truncating response"
+	AIGeneratingResponse      = "Generating AI response..."
+	AIModelUnavailable        = "The specified AI model is currently unavailable"
+	AIInvalidPrompt           = "The provided prompt is invalid or too short"
+)
+
+// BotBlog specific constants
+const (
+	BlogPostTemplate          = "# {title}\n\n{content}\n\n*Posted on {date}*"
+	BlogGeneratePrompt        = "Write a blog post about the following topic: "
+	BlogDefaultTitle          = "Untitled Blog Post"
+	BlogDefaultCategory       = "General"
+	BlogErrorGeneratingPost   = "Error generating blog post"
+	BlogPostSaved             = "Blog post saved successfully"
+	BlogInvalidTitle          = "Invalid blog post title"
+	BlogInvalidContent        = "Invalid blog post content"
+	BlogPostNotFound          = "Blog post not found"
+	BlogCategoryNotFound      = "Blog category not found"
+	BlogGeneratingPost        = "Generating blog post..."
+	BlogFormattingPost        = "Formatting blog post..."
+	BlogPostGenerationPrompt  = "Create an informative and engaging blog post about: "
+	BlogPostFormatInstruction = "Format the post with markdown, including headers, lists, and emphasis where appropriate."
+)
+
+// BotCode specific constants
+const (
+	CodeReviewPrompt           = "Review the following code and provide feedback: "
+	CodeGeneratePrompt         = "Generate code for the following requirements: "
+	CodeExplainPrompt          = "Explain the following code in detail: "
+	CodeOptimizePrompt         = "Optimize the following code: "
+	CodeDefaultLanguage        = "go"
+	CodeErrorGeneratingCode    = "Error generating code"
+	CodeErrorReviewingCode     = "Error reviewing code"
+	CodeErrorExplainingCode    = "Error explaining code"
+	CodeErrorOptimizingCode    = "Error optimizing code"
+	CodeGeneratingResponse     = "Generating code response..."
+	CodeReviewingCode          = "Reviewing code..."
+	CodeExplainingCode         = "Explaining code..."
+	CodeOptimizingCode         = "Optimizing code..."
+	CodeInvalidInput           = "Invalid code input"
+	CodeBlockStart             = "```"
+	CodeBlockEnd               = "```"
+	CodeLanguagePrefix         = "```"
+	CodeReviewSummaryHeader    = "# Code Review Summary"
+	CodeOptimizationHeader     = "# Optimization Suggestions"
+	CodeExplanationHeader      = "# Code Explanation"
+	CodeGeneratedHeader        = "# Generated Code"
+	CodeReviewTemplate         = "## Issues\n\n{issues}\n\n## Suggestions\n\n{suggestions}"
+	CodeDocumentationTemplate  = "/**\n * {description}\n * @param {params}\n * @return {returns}\n */"
+)
+
+// BotGitHub specific constants
+const (
+	GitHubAPIReposURL             = "/repos/"
+	GitHubAPIIssuesURL            = "/issues"
+	GitHubAPIPullsURL             = "/pulls"
+	GitHubAPIContentsURL          = "/contents/"
+	GitHubDefaultBranch           = "main"
+	GitHubErrorFetchingRepo       = "Error fetching repository information"
+	GitHubErrorFetchingIssues     = "Error fetching issues"
+	GitHubErrorFetchingPulls      = "Error fetching pull requests"
+	GitHubErrorFetchingContents   = "Error fetching repository contents"
+	GitHubErrorCreatingIssue      = "Error creating issue"
+	GitHubErrorCreatingPR         = "Error creating pull request"
+	GitHubFetchingRepoInfo        = "Fetching repository information..."
+	GitHubFetchingIssues          = "Fetching repository issues..."
+	GitHubFetchingPulls           = "Fetching repository pull requests..."
+	GitHubFetchingContents        = "Fetching repository contents..."
+	GitHubCreatingIssue           = "Creating new issue..."
+	GitHubCreatingPR              = "Creating new pull request..."
+	GitHubInvalidRepo             = "Invalid repository name or owner"
+	GitHubInvalidIssueTitle       = "Invalid issue title"
+	GitHubInvalidPRTitle          = "Invalid pull request title"
+	GitHubIssueCreated            = "Issue created successfully"
+	GitHubPRCreated               = "Pull request created successfully"
+	GitHubDefaultIssueBody        = "This issue was created by the frankmeza-anthropic-bot."
+	GitHubDefaultPRBody           = "This pull request was created by the frankmeza-anthropic-bot."
+	GitHubDefaultCommitMessage    = "Update from frankmeza-anthropic-bot"
+	GitHubDefaultPRTitle          = "Automated PR from frankmeza-anthropic-bot"
+	GitHubDefaultIssueTitle       = "Automated Issue from frankmeza-anthropic-bot"
+	GitHubRepoNotFound            = "Repository not found"
+	GitHubUnauthorized            = "Unauthorized GitHub access"
+	GitHubRateLimitExceeded       = "GitHub API rate limit exceeded"
+	GitHubFileNotFound            = "File not found in repository"
+)
