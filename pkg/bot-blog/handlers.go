@@ -78,7 +78,14 @@ func (handler *Handler) handleNewIssue(issue *github.Issue) {
 	}
 
 	// React with thumbs up to acknowledge
-	if err := handler.githubClient.ReactToIssue(handler.owner, handler.repo, *issue.Number, "+1"); err != nil {
+	if err := handler.githubClient.ReactToIssue(
+		botgithub.ReactToIssueArgs{
+			Owner:       handler.owner,
+			Repo:        handler.repo,
+			IssueNumber: *issue.Number,
+			Reaction:    "+1",
+		},
+	); err != nil {
 		log.Printf("Error reacting to issue: %v", err)
 	}
 
@@ -94,13 +101,15 @@ func (handler *Handler) handleNewIssue(issue *github.Issue) {
 // createBlogPostPR generates a blog post and creates a PR
 func (handler *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostRequest) error {
 	// Generate the blog post content using AI
-	content, err := handler.aiClient.GenerateBlogPost(&botAi.BlogPostRequest{
-		Title:  request.Title,
-		Topic:  request.Topic,
-		Points: request.Points,
-		Tags:   request.Tags,
-		Draft:  request.Draft,
-	})
+	content, err := handler.aiClient.GenerateBlogPost(
+		&botAi.BlogPostRequest{
+			Title:  request.Title,
+			Topic:  request.Topic,
+			Points: request.Points,
+			Tags:   request.Tags,
+			Draft:  request.Draft,
+		},
+	)
 
 	if err != nil {
 		log.Printf("AI generation failed, using template: %v", err)
@@ -197,7 +206,14 @@ func (handler *Handler) handlePRComment(pr *github.PullRequest, comment *github.
 // handleContentChange modifies blog post content based on feedback
 func (handler *Handler) handleContentChange(pr *github.PullRequest, changeRequest string) error {
 	// Get files changed in this PR
-	files, err := handler.githubClient.ListPullRequestFiles(handler.owner, handler.repo, *pr.Number)
+	files, err := handler.githubClient.ListPullRequestFiles(
+		botgithub.ListPullRequestFilesArgs{
+			Owner:    handler.owner,
+			Repo:     handler.repo,
+			PrNumber: *pr.Number,
+		},
+	)
+
 	if err != nil {
 		return fmt.Errorf("getting PR files: %w", err)
 	}
@@ -257,7 +273,14 @@ func (handler *Handler) handleDraftStatusChange(pr *github.PullRequest, comment 
 	shouldPublish := strings.Contains(lowerComment, "publish") || strings.Contains(lowerComment, "ready to publish")
 
 	// Get files in the PR
-	files, err := handler.githubClient.ListPullRequestFiles(handler.owner, handler.repo, *pr.Number)
+	files, err := handler.githubClient.ListPullRequestFiles(
+		botgithub.ListPullRequestFilesArgs{
+			Owner:    handler.owner,
+			Repo:     handler.repo,
+			PrNumber: *pr.Number,
+		},
+	)
+
 	if err != nil {
 		return fmt.Errorf("getting PR files: %w", err)
 	}

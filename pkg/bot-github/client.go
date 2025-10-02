@@ -221,13 +221,21 @@ func (client *Client) GetFileContent(args GetFileContentArgs) (string, string, e
 	return content, *fileContent.SHA, nil
 }
 
+type ListPullRequestFilesArgs struct {
+	Owner    string
+	PrNumber int
+	Repo     string
+}
+
 // ListPullRequestFiles returns the files changed in a pull request
-func (client *Client) ListPullRequestFiles(owner, repo string, prNumber int) ([]*github.CommitFile, error) {
+func (client *Client) ListPullRequestFiles(
+	args ListPullRequestFilesArgs,
+) ([]*github.CommitFile, error) {
 	files, _, err := client.github.PullRequests.ListFiles(
 		client.context,
-		owner,
-		repo,
-		prNumber,
+		args.Owner,
+		args.Repo,
+		args.PrNumber,
 		nil,
 	)
 
@@ -238,14 +246,21 @@ func (client *Client) ListPullRequestFiles(owner, repo string, prNumber int) ([]
 	return files, nil
 }
 
+type ReactToIssueArgs struct {
+	IssueNumber int
+	Owner       string
+	Reaction    string
+	Repo        string
+}
+
 // ReactToIssue adds a reaction to an issue
-func (client *Client) ReactToIssue(owner, repo string, issueNumber int, reaction string) error {
+func (client *Client) ReactToIssue(args ReactToIssueArgs) error {
 	_, _, err := client.github.Reactions.CreateIssueReaction(
 		client.context,
-		owner,
-		repo,
-		issueNumber,
-		reaction,
+		args.Owner,
+		args.Repo,
+		args.IssueNumber,
+		args.Reaction,
 	)
 
 	if err != nil {

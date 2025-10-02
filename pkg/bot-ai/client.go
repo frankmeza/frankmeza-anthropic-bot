@@ -47,7 +47,8 @@ func (client *Client) GenerateBlogPost(request *BlogPostRequest) (string, error)
 			Messages: []anthropic.MessageParam{
 				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
 			},
-		})
+		},
+	)
 
 	if err != nil {
 		return "", fmt.Errorf("anthropic API error: %w", err)
@@ -74,7 +75,8 @@ func (client *Client) ModifyBlogPost(currentContent, changeRequest string) (stri
 			Messages: []anthropic.MessageParam{
 				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
 			},
-		})
+		},
+	)
 
 	if err != nil {
 		return "", fmt.Errorf("anthropic API error: %w", err)

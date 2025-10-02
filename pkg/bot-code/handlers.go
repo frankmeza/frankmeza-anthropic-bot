@@ -83,7 +83,14 @@ func (handler *Handler) HandleNewIssue(issue *github.Issue) {
 		return
 	}
 
-	if err := handler.githubClient.ReactToIssue(handler.owner, handler.repo, *issue.Number, "+1"); err != nil {
+	if err := handler.githubClient.ReactToIssue(
+		botgithub.ReactToIssueArgs{
+			Owner:       handler.owner,
+			Repo:        handler.repo,
+			IssueNumber: *issue.Number,
+			Reaction:    "+1",
+		},
+	); err != nil {
 		log.Printf("Error reacting to issue: %v", err)
 	}
 
@@ -122,7 +129,8 @@ func (handler *Handler) createCodeChangePR(issue *github.Issue, request *ChangeR
 			BranchName: branchName,
 			Owner:      handler.owner,
 			Repo:       handler.repo,
-		}); err != nil {
+		},
+	); err != nil {
 		return fmt.Errorf("creating branch: %w", err)
 	}
 
@@ -187,8 +195,18 @@ func (handler *Handler) HandlePRComment(pr *github.PullRequest, comment *github.
 }
 
 // handleCodeModification modifies code based on feedback
-func (handler *Handler) handleCodeModification(pr *github.PullRequest, changeRequest string) error {
-	files, err := handler.githubClient.ListPullRequestFiles(handler.owner, handler.repo, *pr.Number)
+func (handler *Handler) handleCodeModification(
+	pr *github.PullRequest,
+	changeRequest string,
+) error {
+	files, err := handler.githubClient.ListPullRequestFiles(
+		botgithub.ListPullRequestFilesArgs{
+			Owner:    handler.owner,
+			Repo:     handler.repo,
+			PrNumber: *pr.Number,
+		},
+	)
+
 	if err != nil {
 		return fmt.Errorf("getting PR files: %w", err)
 	}
