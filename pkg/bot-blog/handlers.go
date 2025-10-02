@@ -209,7 +209,14 @@ func (handler *Handler) handleContentChange(pr *github.PullRequest, changeReques
 				strings.Contains(*file.Filename, "pkg/blog_markdown_content/drafts")) {
 
 			// Get current content
-			currentContent, sha, err := handler.githubClient.GetFileContent(handler.owner, handler.repo, *file.Filename, *pr.Head.Ref)
+			currentContent, sha, err := handler.githubClient.GetFileContent(
+				botgithub.GetFileContentArgs{
+					Filename: *file.Filename,
+					Owner:    handler.owner,
+					Ref:      *pr.Head.Ref,
+					Repo:     handler.repo,
+				},
+			)
 			if err != nil {
 				return fmt.Errorf("getting file content: %w", err)
 			}
@@ -261,7 +268,14 @@ func (handler *Handler) handleDraftStatusChange(pr *github.PullRequest, comment 
 				strings.Contains(*file.Filename, "pkg/blog_markdown_content/drafts")) {
 
 			// Get current content
-			currentContent, sha, err := handler.githubClient.GetFileContent(handler.owner, handler.repo, *file.Filename, *pr.Head.Ref)
+			currentContent, sha, err := handler.githubClient.GetFileContent(
+				botgithub.GetFileContentArgs{
+					Filename: *file.Filename,
+					Owner:    handler.owner,
+					Ref:      *pr.Head.Ref,
+					Repo:     handler.repo,
+				},
+			)
 			if err != nil {
 				return fmt.Errorf("getting file content: %w", err)
 			}

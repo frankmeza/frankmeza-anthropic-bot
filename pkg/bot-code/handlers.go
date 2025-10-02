@@ -198,7 +198,14 @@ func (h *Handler) handleCodeModification(pr *github.PullRequest, changeRequest s
 			continue
 		}
 
-		currentContent, sha, err := h.githubClient.GetFileContent(h.owner, h.repo, *file.Filename, *pr.Head.Ref)
+		currentContent, sha, err := h.githubClient.GetFileContent(
+			botgithub.GetFileContentArgs{
+				Filename: *file.Filename,
+				Owner:    h.owner,
+				Ref:      *pr.Head.Ref,
+				Repo:     h.repo,
+			},
+		)
 		if err != nil {
 			return fmt.Errorf("getting file content: %w", err)
 		}

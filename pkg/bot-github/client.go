@@ -159,13 +159,20 @@ func (client *Client) CreatePullRequest(args CreatePullRequestArgs) (*github.Pul
 	return pullRequest, nil
 }
 
+type GetFileContentArgs struct {
+	Filename string
+	Owner    string
+	Ref      string
+	Repo     string
+}
+
 // GetFileContent retrieves the content of a file from the repository
-func (client *Client) GetFileContent(owner, repo, filename, ref string) (string, string, error) {
+func (client *Client) GetFileContent(args GetFileContentArgs) (string, string, error) {
 	options := &github.RepositoryContentGetOptions{
-		Ref: ref,
+		Ref: args.Ref,
 	}
 
-	fileContent, _, _, err := client.github.Repositories.GetContents(client.ctx, owner, repo, filename, options)
+	fileContent, _, _, err := client.github.Repositories.GetContents(client.ctx, args.Owner, args.Repo, args.Filename, options)
 	if err != nil {
 		return "", "", fmt.Errorf("getting file content: %w", err)
 	}
