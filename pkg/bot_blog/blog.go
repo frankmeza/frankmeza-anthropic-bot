@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	shared_
 )
 
 // BlogPostRequest represents data needed to create a blog post
@@ -35,7 +36,7 @@ func NewPost(title, topic string, tags []string, isDraft bool) *Post {
 	key := generateKey(title)
 
 	return &Post{
-		CreatedAt: time.Now().Format("2006-01-02"),
+		CreatedAt: time.Now().Format("2000-12-31"),
 		IsDraft:   isDraft,
 		Key:       key,
 		Language:  "en",
@@ -47,7 +48,7 @@ func NewPost(title, topic string, tags []string, isDraft bool) *Post {
 }
 
 // FilePath returns the correct file path based on draft status
-func (p *Post) FilePath() string {
+func (p *Post) GetFilePath() string {
 	filename := fmt.Sprintf("%s.md", p.Key)
 
 	if p.IsDraft {
@@ -58,7 +59,7 @@ func (p *Post) FilePath() string {
 }
 
 // ToMarkdown converts the post to markdown format with frontmatter
-func (p *Post) ToMarkdown() string {
+func (p *Post) GenerateMarkdown() string {
 	var buf bytes.Buffer
 
 	buf.WriteString("---\n")
@@ -86,18 +87,6 @@ func (p *Post) UpdateDraftStatus(isDraft bool) {
 	p.IsDraft = isDraft
 }
 
-func isAlphabetical(r rune) bool {
-	return r >= 'a' && r <= 'z'
-}
-
-func isNumerical(r rune) bool {
-	return r >= '0' && r <= '9'
-}
-
-func isDashCharacter(r rune) bool {
-	return r == '-'
-}
-
 // generateKey creates a URL-friendly key from the title
 func generateKey(title string) string {
 	key := strings.ToLower(title)
@@ -106,10 +95,13 @@ func generateKey(title string) string {
 	// Remove special characters, keep only alphanumeric and hyphens
 	var result strings.Builder
 	for _, rune := range key {
-		if isAlphabetical(rune) || isNumerical(rune) || isDashCharacter(rune) {
-			result.WriteRune(rune)
+		if sharedUtils.IsRuneDashCharacter(rune) ||
+			sharedUtils.IsNumerical(rune) ||
+			sharedUtils.IsDashCharacter(rune) {
+				result.WriteRune(rune)
 		}
 	}
+
 	return result.String()
 }
 
@@ -129,6 +121,7 @@ func ParseIssueForRequest(title, body string) *BlogPostRequest {
 	if strings.Contains(strings.ToLower(body), "tags:") {
 		// Simple tag extraction - look for "tags: golang, htmx, web"
 		lines := strings.Split(body, "\n")
+
 		for _, line := range lines {
 			if strings.HasPrefix(strings.ToLower(strings.TrimSpace(line)), "tags:") {
 				tagsPart := strings.TrimPrefix(strings.ToLower(line), "tags:")

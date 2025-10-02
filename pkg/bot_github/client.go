@@ -17,12 +17,16 @@ type Client struct {
 // NewClient creates a new GitHub client with the provided token
 func NewClient(token string) *Client {
 	context := context.Background()
-	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
-	tc := oauth2.NewClient(context, ts)
+
+	tokenSource := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: token},
+	)
+
+	clientToken := oauth2.NewClient(context, tokenSource)
 
 	return &Client{
 		context: context,
-		github:  github.NewClient(tc),
+		github:  github.NewClient(clientToken),
 	}
 }
 
@@ -208,7 +212,9 @@ type GetFileContentArgs struct {
 }
 
 // GetFileContent retrieves the content of a file from the repository
-func (client *Client) GetFileContent(args GetFileContentArgs) (string, string, error) {
+func (client *Client) GetFileContent(
+	args GetFileContentArgs,
+) (string, string, error) {
 	options := &github.RepositoryContentGetOptions{
 		Ref: args.Ref,
 	}

@@ -3,6 +3,8 @@ package botai
 import (
 	"context"
 	"fmt"
+
+	sharedUtils "github.com/frankmeza/frankmeza-anthropic-bot/pkg/shared_utils"
 )
 
 // CodeRequest represents a request to generate code
@@ -20,14 +22,17 @@ func (c *Client) GenerateCode(request *CodeRequest) (string, error) {
 
 	message, err := c.anthropic.Messages.New(
 		context.Background(),
-		CreateMessageParams(prompt),
+		sharedUtils.CreateMessageParams(prompt),
+		// optional third param of options, todo research here
 	)
 
 	if err != nil {
 		return "", fmt.Errorf("anthropic API error: %w", err)
 	}
 
-	if len(message.Content) > 0 {
+	hasTextBlock := len(message.Content) > 0
+
+	if hasTextBlock {
 		textBlock := message.Content[0]
 		return textBlock.Text, nil
 	}
@@ -41,7 +46,7 @@ func (c *Client) ModifyCode(currentContent, changeRequest string) (string, error
 
 	message, err := c.anthropic.Messages.New(
 		context.Background(),
-		CreateMessageParams(prompt),
+		sharedUtils.CreateMessageParams(prompt),
 	)
 
 	if err != nil {
@@ -58,6 +63,7 @@ func (c *Client) ModifyCode(currentContent, changeRequest string) (string, error
 
 // buildCodeGenerationPrompt creates the prompt for generating new code
 func buildCodeGenerationPrompt(request *CodeRequest) string {
+	// basically being the ai hype man over here
 	return fmt.Sprintf(`You are an expert Go developer writing code for the frankmeza-anthropic-bot project. Generate Go code based on this request.
 
 **Request:** %s
@@ -75,7 +81,7 @@ func buildCodeGenerationPrompt(request *CodeRequest) string {
 - Use early returns with blank lines for clarity
 - Include error handling with descriptive error messages
 - Add helpful comments for complex logic
-- Match the existing code style in the project (see the bot-ai, bot-blog, bot-github packages)
+- Match the existing code style in the project (see the bot_ai, bot_blog, bot_github packages)
 
 **Code Structure:**
 - If creating a new package, include package declaration

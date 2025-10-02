@@ -8,6 +8,7 @@ import (
 
 	botAi "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot_ai"
 	botGithub "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot_github"
+	sharedUtils "github.com/frankmeza/frankmeza-anthropic-bot/pkg/shared_utils"
 	"github.com/google/go-github/v57/github"
 )
 
@@ -21,10 +22,14 @@ type Handler struct {
 }
 
 // NewHandler creates a new code handler
-func NewHandler(githubClient *botGithub.Client, aiClient *botAi.Client, owner, repo, webhookSecret string) *Handler {
+func NewHandler(
+	githubClient *botGithub.Client,
+	aiClient *botAi.Client,
+	owner, repo, webhookSecret string,
+) *Handler {
 	return &Handler{
-		githubClient:  githubClient,
 		aiClient:      aiClient,
+		githubClient:  githubClient,
 		owner:         owner,
 		repo:          repo,
 		webhookSecret: webhookSecret,
@@ -243,6 +248,7 @@ func (handler *Handler) handleCodeModification(
 				Repo:     handler.repo,
 			},
 		)
+
 		if err != nil {
 			return fmt.Errorf("getting file content: %w", err)
 		}
@@ -252,7 +258,10 @@ func (handler *Handler) handleCodeModification(
 			return fmt.Errorf("AI modification failed: %w", err)
 		}
 
-		message := fmt.Sprintf("Update code based on feedback: %s", truncate(changeRequest, 50))
+		message := fmt.Sprintf(
+			"Update code based on feedback: %s",
+			sharedUtils.TruncateText(changeRequest, 50),
+		)
 
 		if err := handler.githubClient.UpdateFile(
 			botGithub.UpdateFileArgs{
@@ -311,12 +320,4 @@ func (handler *Handler) generatePRBody(issue *github.Issue, codeFile *CodeFile) 
 This code was automatically generated. Feel free to comment with any changes you'd like me to make!
 
 Closes #%d`, *issue.Number, codeFile.Path, *issue.Title, *issue.Number)
-}
-
-func truncate(s string, length int) string {
-	if len(s) <= length {
-		return s
-	}
-
-	return s[:length] + "..."
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	sharedUtils "github.com/frankmeza/frankmeza-anthropic-bot/pkg/shared_utils"
 )
 
 // ChangeRequest represents a code change request from an issue
@@ -27,14 +29,20 @@ func ParseIssueForCodeRequest(title, body string) *ChangeRequest {
 		Tags:        []string{"ai-generated"},
 	}
 
-	// Extract target path if specified
-	if strings.Contains(strings.ToLower(body), "file:") || strings.Contains(strings.ToLower(body), "path:") {
-		lines := strings.Split(body, "\n")
+	doesBodyContainFileKeyword := strings.Contains(strings.ToLower(body), "file:")
+	doesBodyContainPathKeyword := strings.Contains(strings.ToLower(body), "path:")
 
-		for _, line := range lines {
+	// Extract target path if specified
+	if doesBodyContainFileKeyword || doesBodyContainPathKeyword {
+		lines := strings.SplitSeq(body, "\n")
+
+		for line := range lines {
 			lowerLine := strings.ToLower(strings.TrimSpace(line))
 
-			if strings.HasPrefix(lowerLine, "file:") || strings.HasPrefix(lowerLine, "path:") {
+			doesFileHavePrefixFileKeyword := strings.HasPrefix(lowerLine, "file:")
+			doesFileHavePrefixPathKeyword := strings.HasPrefix(lowerLine, "path:")
+
+			if doesFileHavePrefixFileKeyword || doesFileHavePrefixPathKeyword {
 				parts := strings.SplitN(line, ":", 2)
 
 				if len(parts) == 2 {
@@ -57,28 +65,29 @@ type CodeFile struct {
 // NewCodeFile creates a new code file structure
 func NewCodeFile(path, content, message string) *CodeFile {
 	return &CodeFile{
-		Path:    path,
 		Content: content,
 		Message: message,
+		Path:    path,
 	}
 }
 
 // IsGoFile checks if the file is a Go source file
-func (cf *CodeFile) IsGoFile() bool {
-	return strings.HasSuffix(cf.Path, ".go")
+func (codeFile *CodeFile) IsGoFile() bool {
+	return strings.HasSuffix(codeFile.Path, ".go")
 }
 
 // Directory returns the directory portion of the path
-func (cf *CodeFile) Directory() string {
-	return filepath.Dir(cf.Path)
+func (codeFile *CodeFile) GetDirectory() string {
+	return filepath.Dir(codeFile.Path)
 }
 
-// Filename returns just the filename
-func (cf *CodeFile) Filename() string {
-	return filepath.Base(cf.Path)
+// GetFilePath returns just the filename
+func (codeFile *CodeFile) GetFilePath() string {
+	return filepath.Base(codeFile.Path)
 }
 
 // DetermineTargetPath figures out where a code file should go based on the request
+// todo - oh this needs help
 func DetermineTargetPath(request *ChangeRequest) string {
 	if request.TargetPath != "" {
 		return request.TargetPath
@@ -87,6 +96,8 @@ func DetermineTargetPath(request *ChangeRequest) string {
 	// Default paths based on request type
 	title := strings.ToLower(request.Title)
 
+	// these are defaults so that means something is up with request.TargetPath
+	// it is a good idea to come up with a worst case scenario file name
 	if strings.Contains(title, "handler") {
 		return "pkg/bot-code/handlers.go"
 	}
@@ -112,9 +123,11 @@ func generateFilename(title string) string {
 	// Remove special characters
 	var result strings.Builder
 
-	for _, r := range filename {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' {
-			result.WriteRune(r)
+	for _, rune := range filename {
+		if sharedUtils.IsRuneAlphabetical(rune) ||
+			sharedUtils.IsRuneNumerical(rune) ||
+			sharedUtils.IsRuneDashCharacter(rune) {
+			result.WriteRune(rune)
 		}
 	}
 

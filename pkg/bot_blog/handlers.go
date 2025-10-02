@@ -9,6 +9,7 @@ import (
 
 	botAi "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot_ai"
 	botGithub "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot_github"
+	sharedUtils "github.com/frankmeza/frankmeza-anthropic-bot/pkg/shared_utils"
 	"github.com/google/go-github/v57/github"
 )
 
@@ -121,7 +122,7 @@ func (handler *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostR
 		content = handler.generateTemplateContent(request)
 	}
 
-	// Create blog post struct
+	// instantiate blog post struct, incomplete
 	post := NewPost(
 		request.Title,
 		request.Topic,
@@ -129,10 +130,12 @@ func (handler *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostR
 		request.Draft,
 	)
 
+	// post content is assigned here
 	post.Content = content
 
 	// Create branch
-	branchName := fmt.Sprintf("ai-blog-post-%d", *issue.Number)
+	branchName := fmt.Sprintf("ai-assisted-post-%d", *issue.Number)
+
 	if err := handler.GithubClient.CreateBranch(
 		botGithub.CreateBranchArgs{
 			BranchName: branchName,
@@ -144,8 +147,8 @@ func (handler *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostR
 	}
 
 	// Create markdown file
-	filename := post.FilePath()
-	markdown := post.ToMarkdown()
+	filename := post.GetFilePath()
+	markdown := post.GenerateMarkdown()
 	message := "Add AI-generated blog post"
 
 	if err := handler.GithubClient.CreateFile(
@@ -168,14 +171,15 @@ func (handler *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostR
 
 	_, err = handler.GithubClient.CreatePullRequest(
 		botGithub.CreatePullRequestArgs{
+			Body:  body,
+			Base:  "main",
+			Head:  head,
 			Owner: handler.Owner,
 			Repo:  handler.Repo,
 			Title: title,
-			Body:  body,
-			Head:  head,
-			Base:  "main",
 		},
 	)
+
 	if err != nil {
 		return fmt.Errorf("creating PR: %w", err)
 	}
@@ -185,26 +189,26 @@ func (handler *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostR
 
 // handlePRComment processes comments on pull requests
 func (handler *Handler) handlePRComment(
-	pr *github.PullRequest,
+	pullRequest *github.PullRequest,
 	comment *github.PullRequestComment,
 ) {
-	commentBody := *comment.Body
-
 	// React with thumbs up to acknowledge
 	if err := handler.GithubClient.ReactToPRComment(
 		botGithub.ReactToPRCommentArgs{
-			Owner:     handler.Owner,
-			Repo:      handler.Repo,
 			CommentID: *comment.ID,
+			Owner:     handler.Owner,
 			Reaction:  "+1",
+			Repo:      handler.Repo,
 		},
 	); err != nil {
 		log.Printf("Error reacting to PR comment: %v", err)
 	}
 
+	commentBody := *comment.Body
+
 	// Check for draft status changes
-	if handler.isDraftStatusChange(commentBody) {
-		if err := handler.handleDraftStatusChange(pr, commentBody); err != nil {
+	if handler.hasDraftStatusChange(commentBody) {
+		if err := handler.handleDraftStatusChange(pullRequest, commentBody); err != nil {
 			log.Printf("Error changing draft status: %v", err)
 		}
 
@@ -213,13 +217,14 @@ func (handler *Handler) handlePRComment(
 
 	// Handle content changes
 	if handler.isChangeRequest(commentBody) {
-		if err := handler.handleContentChange(pr, commentBody); err != nil {
+		if err := handler.handleContentChange(pullRequest, commentBody); err != nil {
 			log.Printf("Error updating content: %v", err)
+
 			handler.GithubClient.CommentOnPR(
 				botGithub.CommentOnPRArgs{
 					Comment:  "Sorry, I had trouble making that change. Could you be more specific?",
 					Owner:    handler.Owner,
-					PrNumber: *pr.Number,
+					PrNumber: *pullRequest.Number,
 					Repo:     handler.Repo,
 				},
 			)
@@ -227,10 +232,10 @@ func (handler *Handler) handlePRComment(
 			// React with rocket to show completion
 			handler.GithubClient.ReactToPRComment(
 				botGithub.ReactToPRCommentArgs{
-					Owner:     handler.Owner,
-					Repo:      handler.Repo,
 					CommentID: *comment.ID,
+					Owner:     handler.Owner,
 					Reaction:  "rocket",
+					Repo:      handler.Repo,
 				},
 			)
 		}
@@ -239,7 +244,7 @@ func (handler *Handler) handlePRComment(
 
 // handleContentChange modifies blog post content based on feedback
 func (handler *Handler) handleContentChange(
-	pr *github.PullRequest,
+	pullRequest *github.PullRequest,
 	changeRequest string,
 ) error {
 	// Get files changed in this PR
@@ -247,7 +252,7 @@ func (handler *Handler) handleContentChange(
 		botGithub.ListPullRequestFilesArgs{
 			Owner:    handler.Owner,
 			Repo:     handler.Repo,
-			PrNumber: *pr.Number,
+			PrNumber: *pullRequest.Number,
 		},
 	)
 
@@ -257,16 +262,17 @@ func (handler *Handler) handleContentChange(
 
 	// Find the blog post file
 	for _, file := range files {
-		if strings.HasSuffix(*file.Filename, ".md") &&
-			(strings.Contains(*file.Filename, "pkg/blog_markdown_content/posts") ||
-				strings.Contains(*file.Filename, "pkg/blog_markdown_content/drafts")) {
+		isMarkdownFile := strings.HasSuffix(*file.Filename, ".md")
+		isFileInPostsDir := strings.Contains(*file.Filename, "pkg/blog_markdown_content/posts")
+		isFileInDraftsDir := strings.Contains(*file.Filename, "pkg/blog_markdown_content/drafts")
 
+		if isMarkdownFile && (isFileInPostsDir || isFileInDraftsDir) {
 			// Get current content
 			currentContent, sha, err := handler.GithubClient.GetFileContent(
 				botGithub.GetFileContentArgs{
 					Filename: *file.Filename,
 					Owner:    handler.Owner,
-					Ref:      *pr.Head.Ref,
+					Ref:      *pullRequest.Head.Ref,
 					Repo:     handler.Repo,
 				},
 			)
@@ -276,17 +282,24 @@ func (handler *Handler) handleContentChange(
 			}
 
 			// Use AI to modify the content
-			updatedContent, err := handler.AiClient.ModifyBlogPost(currentContent, changeRequest)
+			updatedContent, err := handler.AiClient.ModifyBlogPost(
+				currentContent,
+				changeRequest,
+			)
+
 			if err != nil {
 				return fmt.Errorf("AI modification failed: %w", err)
 			}
 
 			// Update the file
-			message := fmt.Sprintf("Update blog post based on feedback: %s", truncate(changeRequest, 50))
+			message := fmt.Sprintf(
+				"Update blog post based on feedback: %s",
+				sharedUtils.TruncateText(changeRequest, 50),
+			)
 
 			if err := handler.GithubClient.UpdateFile(
 				botGithub.UpdateFileArgs{
-					Branch:   *pr.Head.Ref,
+					Branch:   *pullRequest.Head.Ref,
 					Content:  updatedContent,
 					Filename: *file.Filename,
 					Message:  message,
@@ -307,7 +320,7 @@ func (handler *Handler) handleContentChange(
 
 // handleDraftStatusChange moves blog posts between drafts and posts directories
 func (handler *Handler) handleDraftStatusChange(
-	pr *github.PullRequest,
+	pullRequest *github.PullRequest,
 	comment string,
 ) error {
 	lowerComment := strings.ToLower(comment)
@@ -320,7 +333,7 @@ func (handler *Handler) handleDraftStatusChange(
 		botGithub.ListPullRequestFilesArgs{
 			Owner:    handler.Owner,
 			Repo:     handler.Repo,
-			PrNumber: *pr.Number,
+			PrNumber: *pullRequest.Number,
 		},
 	)
 
@@ -329,19 +342,21 @@ func (handler *Handler) handleDraftStatusChange(
 	}
 
 	for _, file := range files {
-		if strings.HasSuffix(*file.Filename, ".md") &&
-			(strings.Contains(*file.Filename, "pkg/blog_markdown_content/posts") ||
-				strings.Contains(*file.Filename, "pkg/blog_markdown_content/drafts")) {
+		isMarkdownFile := strings.HasSuffix(*file.Filename, ".md")
+		isFileInPostsDir := strings.Contains(*file.Filename, "pkg/blog_markdown_content/posts")
+		isFileInDraftsDir := strings.Contains(*file.Filename, "pkg/blog_markdown_content/drafts")
 
+		if isMarkdownFile && (isFileInPostsDir || isFileInDraftsDir) {
 			// Get current content
 			currentContent, sha, err := handler.GithubClient.GetFileContent(
 				botGithub.GetFileContentArgs{
 					Filename: *file.Filename,
 					Owner:    handler.Owner,
-					Ref:      *pr.Head.Ref,
+					Ref:      *pullRequest.Head.Ref,
 					Repo:     handler.Repo,
 				},
 			)
+
 			if err != nil {
 				return fmt.Errorf("getting file content: %w", err)
 			}
@@ -359,7 +374,7 @@ func (handler *Handler) handleDraftStatusChange(
 				newFilename = filepath.Join("pkg", "blog_markdown_content", "drafts", baseName+".md")
 			}
 
-			// Create new file
+			// Create new file in /posts
 			message := fmt.Sprintf(
 				"Move blog post to %s",
 				map[bool]string{true: "published", false: "draft"}[shouldPublish],
@@ -367,7 +382,7 @@ func (handler *Handler) handleDraftStatusChange(
 
 			if err := handler.GithubClient.CreateFile(
 				botGithub.CreateFileArgs{
-					Branch:   *pr.Head.Ref,
+					Branch:   *pullRequest.Head.Ref,
 					Content:  updatedContent,
 					Filename: newFilename,
 					Message:  message,
@@ -378,12 +393,12 @@ func (handler *Handler) handleDraftStatusChange(
 				return fmt.Errorf("creating new file: %w", err)
 			}
 
-			// Delete old file
+			// Delete old file in /drafts assumedly
 			if err := handler.GithubClient.DeleteFile(
 				botGithub.DeleteFileArgs{
 					Owner:    handler.Owner,
 					Repo:     handler.Repo,
-					Branch:   *pr.Head.Ref,
+					Branch:   *pullRequest.Head.Ref,
 					Filename: *file.Filename,
 					Message:  "Remove old blog post file",
 					Sha:      sha,
@@ -402,7 +417,7 @@ func (handler *Handler) handleDraftStatusChange(
 				botGithub.CommentOnPRArgs{
 					Comment:  fmt.Sprintf("✅ Blog post %s!", statusMsg),
 					Owner:    handler.Owner,
-					PrNumber: *pr.Number,
+					PrNumber: *pullRequest.Number,
 					Repo:     handler.Repo,
 				},
 			)
@@ -439,7 +454,7 @@ func (handler *Handler) isChangeRequest(comment string) bool {
 	return false
 }
 
-func (handler *Handler) isDraftStatusChange(comment string) bool {
+func (handler *Handler) hasDraftStatusChange(comment string) bool {
 	lowerComment := strings.ToLower(comment)
 	return strings.Contains(lowerComment, "publish") ||
 		strings.Contains(lowerComment, "ready to publish") ||
@@ -498,11 +513,4 @@ What I find interesting is how this connects to broader patterns in development.
 {.text-base .mb-6}
 Hope this gives you some ideas to play around with! As always, feel free to reach out if you want to chat more about this stuff.
 `, request.Topic, request.Topic)
-}
-
-func truncate(s string, length int) string {
-	if len(s) <= length {
-		return s
-	}
-	return s[:length] + "..."
 }

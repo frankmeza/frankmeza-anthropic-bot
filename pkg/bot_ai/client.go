@@ -6,6 +6,8 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+
+	sharedUtils "github.com/frankmeza/frankmeza-anthropic-bot/pkg/shared_utils"
 )
 
 // Client handles all AI operations using Anthropic's Claude
@@ -41,7 +43,7 @@ func (client *Client) GenerateBlogPost(request *BlogPostRequest) (string, error)
 
 	message, err := client.anthropic.Messages.New(
 		context.Background(),
-		CreateMessageParams(prompt),
+		sharedUtils.CreateMessageParams(prompt),
 	)
 
 	if err != nil {
@@ -66,7 +68,7 @@ func (client *Client) ModifyBlogPost(
 
 	message, err := client.anthropic.Messages.New(
 		context.Background(),
-		CreateMessageParams(prompt),
+		sharedUtils.CreateMessageParams(prompt),
 	)
 
 	if err != nil {
