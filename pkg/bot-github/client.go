@@ -26,10 +26,16 @@ func NewClient(token string) *Client {
 	}
 }
 
+type CreateBranchArgs struct {
+	BranchName string
+	Owner      string
+	Repo       string
+}
+
 // CreateBranch creates a new branch from the main branch
-func (client *Client) CreateBranch(owner, repo, branchName string) error {
+func (client *Client) CreateBranch(args CreateBranchArgs) error {
 	// Get the main branch reference
-	mainRef, _, err := client.github.Git.GetRef(client.ctx, owner, repo, "refs/heads/main")
+	mainRef, _, err := client.github.Git.GetRef(client.ctx, args.Owner, args.Repo, "refs/heads/main")
 	if err != nil {
 		return fmt.Errorf("getting main branch: %w", err)
 	}
@@ -39,10 +45,10 @@ func (client *Client) CreateBranch(owner, repo, branchName string) error {
 		Object: &github.GitObject{
 			SHA: mainRef.Object.SHA,
 		},
-		Ref: github.String("refs/heads/" + branchName),
+		Ref: github.String("refs/heads/" + args.BranchName),
 	}
 
-	_, _, err = client.github.Git.CreateRef(client.ctx, owner, repo, newRef)
+	_, _, err = client.github.Git.CreateRef(client.ctx, args.Owner, args.Repo, newRef)
 	if err != nil {
 		return fmt.Errorf("creating branch: %w", err)
 	}
