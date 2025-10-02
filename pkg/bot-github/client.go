@@ -108,15 +108,24 @@ func (client *Client) UpdateFile(args UpdateFileArgs) error {
 	return nil
 }
 
+type DeleteFileArgs struct {
+	Branch   string
+	Filename string
+	Message  string
+	Owner    string
+	Repo     string
+	Sha      string
+}
+
 // DeleteFile deletes a file from the repository
-func (client *Client) DeleteFile(owner, repo, branch, filename, message, sha string) error {
+func (client *Client) DeleteFile(args DeleteFileArgs) error {
 	options := &github.RepositoryContentFileOptions{
-		Branch:  github.String(branch),
-		Message: github.String(message),
-		SHA:     github.String(sha),
+		Branch:  github.String(args.Branch),
+		Message: github.String(args.Message),
+		SHA:     github.String(args.Sha),
 	}
 
-	_, _, err := client.github.Repositories.DeleteFile(client.ctx, owner, repo, filename, options)
+	_, _, err := client.github.Repositories.DeleteFile(client.ctx, args.Owner, args.Repo, args.Filename, options)
 	if err != nil {
 		return fmt.Errorf("deleting file: %w", err)
 	}
@@ -124,16 +133,25 @@ func (client *Client) DeleteFile(owner, repo, branch, filename, message, sha str
 	return nil
 }
 
+type CreatePullRequestArgs struct {
+	Base  string
+	Body  string
+	Head  string
+	Owner string
+	Repo  string
+	Title string
+}
+
 // CreatePullRequest creates a new pull request
-func (client *Client) CreatePullRequest(owner, repo, title, body, head, base string) (*github.PullRequest, error) {
+func (client *Client) CreatePullRequest(args CreatePullRequestArgs) (*github.PullRequest, error) {
 	newPR := &github.NewPullRequest{
-		Title: github.String(title),
-		Head:  github.String(head),
-		Base:  github.String(base),
-		Body:  github.String(body),
+		Title: github.String(args.Title),
+		Head:  github.String(args.Head),
+		Base:  github.String(args.Base),
+		Body:  github.String(args.Body),
 	}
 
-	pullRequest, _, err := client.github.PullRequests.Create(client.ctx, owner, repo, newPR)
+	pullRequest, _, err := client.github.PullRequests.Create(client.ctx, args.Owner, args.Repo, newPR)
 	if err != nil {
 		return nil, fmt.Errorf("creating PR: %w", err)
 	}

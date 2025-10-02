@@ -145,7 +145,16 @@ func (h *Handler) createCodeChangePR(issue *github.Issue, request *ChangeRequest
 	body := h.generatePRBody(issue, codeFile)
 	head := fmt.Sprintf("%s:%s", h.owner, branchName)
 
-	_, err = h.githubClient.CreatePullRequest(h.owner, h.repo, title, body, head, "main")
+	_, err = h.githubClient.CreatePullRequest(
+		botgithub.CreatePullRequestArgs{
+			Owner: h.owner,
+			Repo:  h.repo,
+			Title: title,
+			Body:  body,
+			Head:  head,
+			Base:  "main",
+		},
+	)
 	if err != nil {
 		return fmt.Errorf("creating PR: %w", err)
 	}

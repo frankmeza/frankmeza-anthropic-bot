@@ -146,7 +146,16 @@ func (handler *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostR
 	body := handler.generatePRBody(issue, post)
 	head := fmt.Sprintf("%s:%s", handler.owner, branchName)
 
-	_, err = handler.githubClient.CreatePullRequest(handler.owner, handler.repo, title, body, head, "main")
+	_, err = handler.githubClient.CreatePullRequest(
+		botgithub.CreatePullRequestArgs{
+			Owner: handler.owner,
+			Repo:  handler.repo,
+			Title: title,
+			Body:  body,
+			Head:  head,
+			Base:  "main",
+		},
+	)
 	if err != nil {
 		return fmt.Errorf("creating PR: %w", err)
 	}
@@ -286,7 +295,16 @@ func (handler *Handler) handleDraftStatusChange(pr *github.PullRequest, comment 
 			}
 
 			// Delete old file
-			if err := handler.githubClient.DeleteFile(handler.owner, handler.repo, *pr.Head.Ref, *file.Filename, "Remove old blog post file", sha); err != nil {
+			if err := handler.githubClient.DeleteFile(
+				botgithub.DeleteFileArgs{
+					Owner:    handler.owner,
+					Repo:     handler.repo,
+					Branch:   *pr.Head.Ref,
+					Filename: *file.Filename,
+					Message:  "Remove old blog post file",
+					Sha:      sha,
+				},
+			); err != nil {
 				return fmt.Errorf("deleting old file: %w", err)
 			}
 
