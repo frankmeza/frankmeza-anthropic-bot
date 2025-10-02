@@ -10,11 +10,11 @@ import (
 
 // ChangeRequest represents a code change request from an issue
 type ChangeRequest struct {
-	Title       string
 	Description string
 	FileType    string // "go", "md", etc.
-	TargetPath  string // where the file should go
 	Tags        []string
+	TargetPath  string // where the file should go
+	Title       string
 }
 
 // ParseIssueForCodeRequest extracts code change request data from GitHub issue
@@ -96,8 +96,7 @@ func DetermineTargetPath(request *ChangeRequest) string {
 	// Default paths based on request type
 	title := strings.ToLower(request.Title)
 
-	// these are defaults so that means something is up with request.TargetPath
-	// it is a good idea to come up with a worst case scenario file name
+	// todo this needs to be addressed, it's not amazing
 	if strings.Contains(title, "handler") {
 		return "pkg/bot-code/handlers.go"
 	}
@@ -112,6 +111,8 @@ func DetermineTargetPath(request *ChangeRequest) string {
 
 	// Default to a new file based on title
 	filename := generateFilename(request.Title)
+
+	// todo wut is this
 	return filepath.Join("pkg", "bot-code", filename)
 }
 
