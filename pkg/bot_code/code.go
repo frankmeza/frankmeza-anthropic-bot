@@ -94,26 +94,26 @@ func DetermineTargetPath(request *ChangeRequest) string {
 	}
 
 	// Default paths based on request type
-	title := strings.ToLower(request.Title)
+	// title := strings.ToLower(request.Title)
 
-	// todo this needs to be addressed, it's not amazing
-	if strings.Contains(title, "handler") {
-		return "pkg/bot-code/handlers.go"
-	}
+	// // todo this needs to be addressed, it's not amazing
+	// if strings.Contains(title, "handler") {
+	// 	return "pkg/bot-code/handlers.go"
+	// }
 
-	if strings.Contains(title, "client") {
-		return "pkg/bot-code/client.go"
-	}
+	// if strings.Contains(title, "client") {
+	// 	return "pkg/bot-code/client.go"
+	// }
 
-	if strings.Contains(title, "test") {
-		return "pkg/bot-code/code_test.go"
-	}
+	// if strings.Contains(title, "test") {
+	// 	return "pkg/bot-code/code_test.go"
+	// }
 
 	// Default to a new file based on title
 	filename := generateFilename(request.Title)
 
-	// todo wut is this
-	return filepath.Join("pkg", "bot-code", filename)
+	// todo think about possible alternatives
+	return filepath.Join("pkg", "bot-generated-code", filename)
 }
 
 // generateFilename creates a filename from a title
