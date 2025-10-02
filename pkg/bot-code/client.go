@@ -1,6 +1,3 @@
-I'll refactor the function signatures in pkg/bot-github/client.go to use unique structs for arguments where there are more than two parameters.
-
-```go
 // Client implements GitHub API operations that the bot needs.
 type Client struct {
 	logger *slog.Logger
@@ -148,4 +145,3 @@ func (client *Client) GetFile(args GetFileArgs) ([]byte, error) {
 
 	return []byte(content), nil
 }
-```
