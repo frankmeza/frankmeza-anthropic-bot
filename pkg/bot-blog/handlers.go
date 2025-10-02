@@ -9,6 +9,7 @@ import (
 
 	botAi "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-ai"
 	botGithub "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-github"
+	botgithub "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-github"
 	"github.com/google/go-github/v57/github"
 )
 
@@ -112,7 +113,13 @@ func (handler *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostR
 
 	// Create branch
 	branchName := fmt.Sprintf("ai-blog-post-%d", *issue.Number)
-	if err := handler.githubClient.CreateBranch(handler.owner, handler.repo, branchName); err != nil {
+	if err := handler.githubClient.CreateBranch(
+		botgithub.CreateBranchArgs{
+			BranchName: branchName,
+			Owner:      handler.owner,
+			Repo:       handler.repo,
+		},
+	); err != nil {
 		return fmt.Errorf("creating branch: %w", err)
 	}
 
@@ -121,7 +128,16 @@ func (handler *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostR
 	markdown := post.ToMarkdown()
 	message := "Add AI-generated blog post"
 
-	if err := handler.githubClient.CreateFile(handler.owner, handler.repo, branchName, filename, markdown, message); err != nil {
+	if err := handler.githubClient.CreateFile(
+		botgithub.CreateFileArgs{
+			Branch:   branchName,
+			Content:  markdown,
+			Filename: filename,
+			Message:  message,
+			Owner:    handler.owner,
+			Repo:     handler.repo,
+		},
+	); err != nil {
 		return fmt.Errorf("creating file: %w", err)
 	}
 
@@ -197,7 +213,18 @@ func (handler *Handler) handleContentChange(pr *github.PullRequest, changeReques
 
 			// Update the file
 			message := fmt.Sprintf("Update blog post based on feedback: %s", truncate(changeRequest, 50))
-			if err := handler.githubClient.UpdateFile(handler.owner, handler.repo, *pr.Head.Ref, *file.Filename, updatedContent, message, sha); err != nil {
+
+			if err := handler.githubClient.UpdateFile(
+				botGithub.UpdateFileArgs{
+					Branch:   *pr.Head.Ref,
+					Content:  updatedContent,
+					Filename: *file.Filename,
+					Message:  message,
+					Owner:    handler.owner,
+					Repo:     handler.repo,
+					Sha:      sha,
+				},
+			); err != nil {
 				return fmt.Errorf("updating file: %w", err)
 			}
 
@@ -244,7 +271,17 @@ func (handler *Handler) handleDraftStatusChange(pr *github.PullRequest, comment 
 
 			// Create new file
 			message := fmt.Sprintf("Move blog post to %s", map[bool]string{true: "published", false: "draft"}[shouldPublish])
-			if err := handler.githubClient.CreateFile(handler.owner, handler.repo, *pr.Head.Ref, newFilename, updatedContent, message); err != nil {
+
+			if err := handler.githubClient.CreateFile(
+				botgithub.CreateFileArgs{
+					Branch:   *pr.Head.Ref,
+					Content:  updatedContent,
+					Filename: newFilename,
+					Message:  message,
+					Owner:    handler.owner,
+					Repo:     handler.repo,
+				},
+			); err != nil {
 				return fmt.Errorf("creating new file: %w", err)
 			}
 

@@ -128,7 +128,16 @@ func (h *Handler) createCodeChangePR(issue *github.Issue, request *ChangeRequest
 
 	message := codeFile.Message
 
-	if err := h.githubClient.CreateFile(h.owner, h.repo, branchName, codeFile.Path, codeFile.Content, message); err != nil {
+	if err := h.githubClient.CreateFile(
+		botgithub.CreateFileArgs{
+			Branch:   branchName,
+			Content:  codeFile.Content,
+			Filename: codeFile.Path,
+			Message:  message,
+			Owner:    h.owner,
+			Repo:     h.repo,
+		},
+	); err != nil {
 		return fmt.Errorf("creating file: %w", err)
 	}
 
@@ -192,7 +201,17 @@ func (h *Handler) handleCodeModification(pr *github.PullRequest, changeRequest s
 
 		message := fmt.Sprintf("Update code based on feedback: %s", truncate(changeRequest, 50))
 
-		if err := h.githubClient.UpdateFile(h.owner, h.repo, *pr.Head.Ref, *file.Filename, updatedContent, message, sha); err != nil {
+		if err := h.githubClient.UpdateFile(
+			botgithub.UpdateFileArgs{
+				Branch:   *pr.Head.Ref,
+				Content:  updatedContent,
+				Filename: *file.Filename,
+				Message:  message,
+				Owner:    h.owner,
+				Repo:     h.repo,
+				Sha:      sha,
+			},
+		); err != nil {
 			return fmt.Errorf("updating file: %w", err)
 		}
 

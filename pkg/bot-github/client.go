@@ -56,15 +56,24 @@ func (client *Client) CreateBranch(args CreateBranchArgs) error {
 	return nil
 }
 
+type CreateFileArgs struct {
+	Branch   string
+	Content  string
+	Filename string
+	Message  string
+	Owner    string
+	Repo     string
+}
+
 // CreateFile creates a new file in the repository
-func (client *Client) CreateFile(owner, repo, branch, filename, content, message string) error {
+func (client *Client) CreateFile(args CreateFileArgs) error {
 	options := &github.RepositoryContentFileOptions{
-		Message: github.String(message),
-		Content: []byte(content),
-		Branch:  github.String(branch),
+		Message: github.String(args.Message),
+		Content: []byte(args.Content),
+		Branch:  github.String(args.Branch),
 	}
 
-	_, _, err := client.github.Repositories.CreateFile(client.ctx, owner, repo, filename, options)
+	_, _, err := client.github.Repositories.CreateFile(client.ctx, args.Owner, args.Repo, args.Filename, options)
 	if err != nil {
 		return fmt.Errorf("creating file: %w", err)
 	}
@@ -72,16 +81,26 @@ func (client *Client) CreateFile(owner, repo, branch, filename, content, message
 	return nil
 }
 
+type UpdateFileArgs struct {
+	Branch   string
+	Content  string
+	Filename string
+	Message  string
+	Owner    string
+	Repo     string
+	Sha      string
+}
+
 // UpdateFile updates an existing file in the repository
-func (client *Client) UpdateFile(owner, repo, branch, filename, content, message, sha string) error {
+func (client *Client) UpdateFile(args UpdateFileArgs) error {
 	options := &github.RepositoryContentFileOptions{
-		Branch:  github.String(branch),
-		Content: []byte(content),
-		Message: github.String(message),
-		SHA:     github.String(sha),
+		Branch:  github.String(args.Branch),
+		Content: []byte(args.Content),
+		Message: github.String(args.Message),
+		SHA:     github.String(args.Sha),
 	}
 
-	_, _, err := client.github.Repositories.UpdateFile(client.ctx, owner, repo, filename, options)
+	_, _, err := client.github.Repositories.UpdateFile(client.ctx, args.Owner, args.Repo, args.Filename, options)
 	if err != nil {
 		return fmt.Errorf("updating file: %w", err)
 	}
