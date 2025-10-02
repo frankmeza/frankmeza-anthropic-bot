@@ -11,16 +11,16 @@ import (
 // Client handles all AI operations using Anthropic's Claude
 type Client struct {
 	anthropic *anthropic.Client
-	ctx       context.Context // Add this if missing
+	context   context.Context
 }
 
 // BlogPostRequest represents the data needed to generate a blog post
 type BlogPostRequest struct {
-	Title  string   `json:"title"`
-	Topic  string   `json:"topic"`
+	Draft  bool     `json:"draft"`
 	Points []string `json:"points"`
 	Tags   []string `json:"tags"`
-	Draft  bool     `json:"draft"`
+	Title  string   `json:"title"`
+	Topic  string   `json:"topic"`
 }
 
 // NewClient creates a new AI client with the provided API key
@@ -31,7 +31,7 @@ func NewClient(apiKey string) *Client {
 
 	return &Client{
 		anthropic: &client,
-		ctx:       context.Background(), // Add this line
+		context:   context.Background(),
 	}
 }
 
@@ -47,7 +47,8 @@ func (client *Client) GenerateBlogPost(request *BlogPostRequest) (string, error)
 			Messages: []anthropic.MessageParam{
 				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
 			},
-		})
+		},
+	)
 
 	if err != nil {
 		return "", fmt.Errorf("anthropic API error: %w", err)
@@ -63,7 +64,10 @@ func (client *Client) GenerateBlogPost(request *BlogPostRequest) (string, error)
 }
 
 // ModifyBlogPost updates existing blog post content based on feedback
-func (client *Client) ModifyBlogPost(currentContent, changeRequest string) (string, error) {
+func (client *Client) ModifyBlogPost(
+	currentContent string,
+	changeRequest string,
+) (string, error) {
 	prompt := buildModificationPrompt(currentContent, changeRequest)
 
 	message, err := client.anthropic.Messages.New(
@@ -74,7 +78,8 @@ func (client *Client) ModifyBlogPost(currentContent, changeRequest string) (stri
 			Messages: []anthropic.MessageParam{
 				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
 			},
-		})
+		},
+	)
 
 	if err != nil {
 		return "", fmt.Errorf("anthropic API error: %w", err)

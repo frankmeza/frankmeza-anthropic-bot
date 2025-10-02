@@ -28,7 +28,8 @@ func (c *Client) GenerateCode(request *CodeRequest) (string, error) {
 			Messages: []anthropic.MessageParam{
 				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
 			},
-		})
+		},
+	)
 
 	if err != nil {
 		return "", fmt.Errorf("anthropic API error: %w", err)
@@ -54,7 +55,8 @@ func (c *Client) ModifyCode(currentContent, changeRequest string) (string, error
 			Messages: []anthropic.MessageParam{
 				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
 			},
-		})
+		},
+	)
 
 	if err != nil {
 		return "", fmt.Errorf("anthropic API error: %w", err)
