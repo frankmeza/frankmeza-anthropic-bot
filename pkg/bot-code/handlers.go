@@ -117,7 +117,12 @@ func (h *Handler) createCodeChangePR(issue *github.Issue, request *ChangeRequest
 
 	branchName := fmt.Sprintf("ai-code-change-%d", *issue.Number)
 
-	if err := h.githubClient.CreateBranch(h.owner, h.repo, branchName); err != nil {
+	if err := h.githubClient.CreateBranch(
+		botgithub.CreateBranchArgs{
+			BranchName: branchName,
+			Owner:      h.owner,
+			Repo:       h.repo,
+		}); err != nil {
 		return fmt.Errorf("creating branch: %w", err)
 	}
 
