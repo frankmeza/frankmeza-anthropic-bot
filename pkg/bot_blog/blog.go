@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	shared_
+
+	sharedUtils "github.com/frankmeza/frankmeza-anthropic-bot/pkg/shared_utils"
 )
 
 // BlogPostRequest represents data needed to create a blog post
@@ -98,7 +99,7 @@ func generateKey(title string) string {
 		if sharedUtils.IsRuneDashCharacter(rune) ||
 			sharedUtils.IsNumerical(rune) ||
 			sharedUtils.IsDashCharacter(rune) {
-				result.WriteRune(rune)
+			result.WriteRune(rune)
 		}
 	}
 
