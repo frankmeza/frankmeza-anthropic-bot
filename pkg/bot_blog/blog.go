@@ -97,8 +97,8 @@ func generateKey(title string) string {
 	var result strings.Builder
 	for _, rune := range key {
 		if sharedUtils.IsRuneDashCharacter(rune) ||
-			sharedUtils.IsNumerical(rune) ||
-			sharedUtils.IsDashCharacter(rune) {
+			sharedUtils.IsRuneNumerical(rune) ||
+			sharedUtils.IsRuneDashCharacter(rune) {
 			result.WriteRune(rune)
 		}
 	}
