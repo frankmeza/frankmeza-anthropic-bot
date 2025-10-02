@@ -14,6 +14,11 @@ import (
 	"github.com/google/go-github/v57/github"
 )
 
+func healthCheck(writer http.ResponseWriter, request *http.Request) {
+	writer.WriteHeader(http.StatusOK)
+	writer.Write([]byte("OK"))
+}
+
 func main() {
 	githubToken := os.Getenv("GITHUB_TOKEN")
 	aiAPIKey := os.Getenv("AI_API_KEY")
@@ -26,8 +31,13 @@ func main() {
 		log.Fatal("Missing required environment variables")
 	}
 
+	// create vendor client instances
 	githubClient := botGithub.NewClient(githubToken)
 	aiClient := botAi.NewClient(aiAPIKey)
+
+	// ie which module will be used/handled?
+	// pkg/bot_blog
+	// pkg/bot_code
 
 	blogHandler := botBlog.NewHandler(
 		botBlog.Handler{
@@ -43,10 +53,7 @@ func main() {
 	router := newRouter(blogHandler, codeHandler, repoWebsite, repoBot, webhookSecret)
 
 	http.HandleFunc("/webhook", router.HandleWebhook)
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	})
+	http.HandleFunc("/health", healthCheck)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -67,115 +74,75 @@ type router struct {
 	webhookSecret string // Add this
 }
 
+// todo: create fn sig intf
 func newRouter(blogHandler *botBlog.Handler, codeHandler *botCode.Handler, repoWebsite, repoBot, webhookSecret string) *router {
 	return &router{
 		blogHandler:   blogHandler,
 		codeHandler:   codeHandler,
 		repoWebsite:   repoWebsite,
 		repoBot:       repoBot,
-		webhookSecret: webhookSecret, // Add this
+		webhookSecret: webhookSecret,
 	}
 }
 
-func (rt *router) HandleWebhook(w http.ResponseWriter, r *http.Request) {
-	// Read the body once
-	body, err := io.ReadAll(r.Body)
+func (router *router) HandleWebhook(writer http.ResponseWriter, request *http.Request) {
+	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		log.Printf("Error reading body: %v", err)
-		http.Error(w, "error reading body", http.StatusBadRequest)
+		http.Error(writer, "error reading body", http.StatusBadRequest)
 		return
 	}
 
 	// Parse to get repo name (no validation yet)
-	event, err := github.ParseWebHook(github.WebHookType(r), body)
+	event, err := github.ParseWebHook(github.WebHookType(request), body)
 	if err != nil {
 		log.Printf("Webhook parsing failed: %v", err)
-		http.Error(w, "parsing failed", http.StatusBadRequest)
+		http.Error(writer, "parsing failed", http.StatusBadRequest)
 		return
 	}
 
 	var repoName string
-	switch e := event.(type) {
+
+	switch eventType := event.(type) {
 	case *github.IssuesEvent:
-		repoName = *e.Repo.FullName
+		repoName = *eventType.Repo.FullName
 	case *github.PullRequestReviewCommentEvent:
-		repoName = *e.Repo.FullName
+		repoName = *eventType.Repo.FullName
 	}
 
 	log.Printf("Detected repo: %s", repoName)
 
 	// Recreate the request body for the handler
-	r.Body = io.NopCloser(bytes.NewBuffer(body))
+	request.Body = io.NopCloser(bytes.NewBuffer(body))
 
 	switch {
-	case contains(repoName, rt.repoWebsite):
+	case contains(repoName, router.repoWebsite):
 		log.Printf("Routing to blog handler")
-		rt.blogHandler.HandleWebhook(w, r)
+		router.blogHandler.HandleWebhook(writer, request)
 
-	case contains(repoName, rt.repoBot):
+	case contains(repoName, router.repoBot):
 		log.Printf("Routing to code handler")
-		rt.codeHandler.HandleWebhook(w, r)
+		router.codeHandler.HandleWebhook(writer, request)
 
 	default:
 		log.Printf("Unknown repository: %s", repoName)
-		w.WriteHeader(http.StatusOK)
+		writer.WriteHeader(http.StatusOK)
 	}
 }
 
-// func (rt *router) HandleWebhook(w http.ResponseWriter, r *http.Request) {
-// 	// Try to get repo from header first
-// 	repoName := r.Header.Get("X-GitHub-Repository")
+func contains(parentString, childString string) bool {
+	doesParentExist := len(parentString) > 0
+	doesChildExist := len(childString) > 0
 
-// 	// If header not found, parse the payload to determine repo
-// 	if repoName == "" {
-// 		log.Printf("X-GitHub-Repository header not found, parsing payload...")
+	areStringsEqual := parentString == childString
 
-// 		payload, err := github.ValidatePayload(r, []byte(rt.webhookSecret))
-// 		if err != nil {
-// 			log.Printf("Webhook validation failed: %v", err)
-// 			http.Error(w, "validation failed", http.StatusUnauthorized)
-// 			return
-// 		}
+	// length of parentString minus the length of childString
+	ideallyThisIsZeroIndex := len(parentString) - len(childString)
 
-// 		event, err := github.ParseWebHook(github.WebHookType(r), payload)
-// 		if err != nil {
-// 			log.Printf("Webhook parsing failed: %v", err)
-// 			http.Error(w, "parsing failed", http.StatusBadRequest)
-// 			return
-// 		}
+	// this value can be understood as using
+	// - the difference in length as the beginning index (to the end with the colon character :)
+	// - to compare that with the childString as-is for equality
+	hasCharacterAndPositionEquality := parentString[ideallyThisIsZeroIndex:] == childString
 
-// 		fmt.Printf("event %T", event)
-// 		// Extract repo name from the event
-// 		switch e := event.(type) {
-// 		case *github.IssuesEvent:
-// 			repoName = *e.Repo.FullName
-// 		case *github.IssueCommentEvent:
-// 			repoName = *e.Repo.FullName
-// 		case *github.PullRequestReviewCommentEvent:
-// 			repoName = *e.Repo.FullName
-// 		default:
-// 			repoName = "unknown"
-
-// 			log.Printf("Detected repo from payload: %s", repoName)
-// 		}
-
-// 		switch {
-// 		case contains(repoName, rt.repoWebsite) || repoName == rt.repoWebsite:
-// 			log.Printf("Routing to blog handler for repo: %s", repoName)
-// 			rt.blogHandler.HandleWebhook(w, r)
-
-// 		case contains(repoName, rt.repoBot) || repoName == rt.repoBot:
-// 			log.Printf("Routing to code handler for repo: %s", repoName)
-// 			rt.codeHandler.HandleWebhook(w, r)
-
-// 		default:
-// 			log.Printf("Unknown repository: %s", repoName)
-// 			w.WriteHeader(http.StatusOK)
-// 		}
-// 	}
-// }
-
-func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 &&
-		(s == substr || s[len(s)-len(substr):] == substr)
+	return doesParentExist && doesChildExist && (areStringsEqual || hasCharacterAndPositionEquality)
 }
