@@ -14,14 +14,6 @@ import (
 	"github.com/google/go-github/v57/github"
 )
 
-// Helper to mask sensitive tokens
-func maskToken(token string) string {
-	if len(token) < 8 {
-		return "***"
-	}
-	return token[:4] + "..." + token[len(token)-4:]
-}
-
 func main() {
 	githubToken := os.Getenv("GITHUB_TOKEN")
 	aiAPIKey := os.Getenv("AI_API_KEY")
@@ -48,7 +40,6 @@ func main() {
 	)
 
 	codeHandler := botCode.NewHandler(githubClient, aiClient, owner, repoBot, webhookSecret)
-
 	router := newRouter(blogHandler, codeHandler, repoWebsite, repoBot, webhookSecret)
 
 	http.HandleFunc("/webhook", router.HandleWebhook)

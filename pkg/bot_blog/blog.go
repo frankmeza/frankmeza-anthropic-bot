@@ -8,8 +8,18 @@ import (
 	"time"
 )
 
+// BlogPostRequest represents data needed to create a blog post
+type BlogPostRequest struct {
+	Draft  bool     `json:"draft"`
+	Points []string `json:"points"`
+	Tags   []string `json:"tags"`
+	Title  string   `json:"title"`
+	Topic  string   `json:"topic"`
+}
+
 // Post represents a blog post with frontmatter matching your format
 type Post struct {
+	Content   string   `yaml:"-"`
 	CreatedAt string   `yaml:"created_at"`
 	IsDraft   bool     `yaml:"is_draft"`
 	Key       string   `yaml:"key"`
@@ -18,16 +28,6 @@ type Post struct {
 	Tags      []string `yaml:"tags"`
 	Title     string   `yaml:"title"`
 	Type      string   `yaml:"type"`
-	Content   string   `yaml:"-"`
-}
-
-// BlogPostRequest represents data needed to create a blog post
-type BlogPostRequest struct {
-	Title  string   `json:"title"`
-	Topic  string   `json:"topic"`
-	Points []string `json:"points"`
-	Tags   []string `json:"tags"`
-	Draft  bool     `json:"draft"`
 }
 
 // NewPost creates a new blog post with default values
@@ -86,6 +86,18 @@ func (p *Post) UpdateDraftStatus(isDraft bool) {
 	p.IsDraft = isDraft
 }
 
+func isAlphabetical(r rune) bool {
+	return r >= 'a' && r <= 'z'
+}
+
+func isNumerical(r rune) bool {
+	return r >= '0' && r <= '9'
+}
+
+func isDashCharacter(r rune) bool {
+	return r == '-'
+}
+
 // generateKey creates a URL-friendly key from the title
 func generateKey(title string) string {
 	key := strings.ToLower(title)
@@ -93,9 +105,9 @@ func generateKey(title string) string {
 
 	// Remove special characters, keep only alphanumeric and hyphens
 	var result strings.Builder
-	for _, r := range key {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
-			result.WriteRune(r)
+	for _, rune := range key {
+		if isAlphabetical(rune) || isNumerical(rune) || isDashCharacter(rune) {
+			result.WriteRune(rune)
 		}
 	}
 	return result.String()
@@ -107,10 +119,10 @@ func ParseIssueForRequest(title, body string) *BlogPostRequest {
 	cleanTitle := strings.TrimSpace(strings.TrimPrefix(title, "Blog post:"))
 
 	request := &BlogPostRequest{
+		Draft: true,                     // start as draft
+		Tags:  []string{"ai-generated"}, // default tag
 		Title: cleanTitle,
 		Topic: body,
-		Tags:  []string{"ai-generated"}, // default tag
-		Draft: true,                     // start as draft
 	}
 
 	// Extract any mentioned tags from body

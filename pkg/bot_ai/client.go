@@ -35,19 +35,23 @@ func NewClient(apiKey string) *Client {
 	}
 }
 
+func createMessageParams(prompt string) anthropic.MessageNewParams {
+	return anthropic.MessageNewParams{
+		MaxTokens: 5000,
+		Messages: []anthropic.MessageParam{
+			anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
+		},
+		Model: anthropic.ModelClaude3_7Sonnet20250219,
+	}
+}
+
 // GenerateBlogPost creates blog post content based on the request
 func (client *Client) GenerateBlogPost(request *BlogPostRequest) (string, error) {
 	prompt := buildBlogPostPrompt(request)
 
 	message, err := client.anthropic.Messages.New(
 		context.Background(),
-		anthropic.MessageNewParams{
-			MaxTokens: 5000,
-			Model:     anthropic.ModelClaude3_7Sonnet20250219,
-			Messages: []anthropic.MessageParam{
-				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
-			},
-		},
+		createMessageParams(prompt),
 	)
 
 	if err != nil {
@@ -72,13 +76,7 @@ func (client *Client) ModifyBlogPost(
 
 	message, err := client.anthropic.Messages.New(
 		context.Background(),
-		anthropic.MessageNewParams{
-			MaxTokens: 5000,
-			Model:     anthropic.ModelClaude3_7Sonnet20250219,
-			Messages: []anthropic.MessageParam{
-				anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
-			},
-		},
+		createMessageParams(prompt),
 	)
 
 	if err != nil {

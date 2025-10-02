@@ -2,7 +2,6 @@ package botcode
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -34,19 +33,10 @@ func NewHandler(githubClient *botGithub.Client, aiClient *botAi.Client, owner, r
 
 // HandleWebhook processes GitHub webhook events for code changes
 func (handler *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
-	// payload, err := github.ValidatePayload(r, []byte(""))
-	// // payload, err := github.ValidatePayload(r, []byte(handler.webhookSecret))
-	// if err != nil {
-	// 	log.Printf("webhook validation failed: %v", err)
-	// 	http.Error(w, "validation failed", http.StatusUnauthorized)
-	// 	return
-	// }
-
-	// // Temporarily skip validation for debugging
-	payload, err := io.ReadAll(r.Body)
+	payload, err := github.ValidatePayload(r, []byte(handler.webhookSecret))
 	if err != nil {
-		log.Printf("Error reading body: %v", err)
-		http.Error(w, "error reading body", http.StatusBadRequest)
+		log.Printf("webhook validation failed: %v", err)
+		http.Error(w, "validation failed", http.StatusUnauthorized)
 		return
 	}
 
@@ -177,7 +167,10 @@ func (handler *Handler) createCodeChangePR(issue *github.Issue, request *ChangeR
 }
 
 // HandlePRComment processes comments on pull requests
-func (handler *Handler) HandlePRComment(pr *github.PullRequest, comment *github.PullRequestComment) {
+func (handler *Handler) HandlePRComment(
+	pr *github.PullRequest,
+	comment *github.PullRequestComment,
+) {
 	commentBody := *comment.Body
 
 	if err := handler.githubClient.ReactToPRComment(
