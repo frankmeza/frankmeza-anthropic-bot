@@ -99,8 +99,14 @@ func (handler *Handler) HandleNewIssue(issue *github.Issue) {
 	if err := handler.createCodeChangePR(issue, request); err != nil {
 		log.Printf("Error creating code change PR: %v", err)
 
-		handler.githubClient.CommentOnIssue(handler.owner, handler.repo, *issue.Number,
-			"Sorry, I ran into an error creating the code change. Could you check the request format?")
+		handler.githubClient.CommentOnIssue(
+			botgithub.CommentOnIssueArgs{
+				Comment:     "Sorry, I ran into an error creating the code change. Could you check the request format?",
+				IssueNumber: *issue.Number,
+				Owner:       handler.owner,
+				Repo:        handler.repo,
+			},
+		)
 	}
 }
 
@@ -174,7 +180,14 @@ func (handler *Handler) createCodeChangePR(issue *github.Issue, request *ChangeR
 func (handler *Handler) HandlePRComment(pr *github.PullRequest, comment *github.PullRequestComment) {
 	commentBody := *comment.Body
 
-	if err := handler.githubClient.ReactToPRComment(handler.owner, handler.repo, *comment.ID, "+1"); err != nil {
+	if err := handler.githubClient.ReactToPRComment(
+		botgithub.ReactToPRCommentArgs{
+			Owner:     handler.owner,
+			Repo:      handler.repo,
+			CommentID: *comment.ID,
+			Reaction:  "+1",
+		},
+	); err != nil {
 		log.Printf("Error reacting to PR comment: %v", err)
 	}
 
@@ -185,13 +198,26 @@ func (handler *Handler) HandlePRComment(pr *github.PullRequest, comment *github.
 	if err := handler.handleCodeModification(pr, commentBody); err != nil {
 		log.Printf("Error updating code: %v", err)
 
-		handler.githubClient.CommentOnPR(handler.owner, handler.repo, *pr.Number,
-			"Sorry, I had trouble making that change. Could you be more specific?")
+		handler.githubClient.CommentOnPR(
+			botgithub.CommentOnPRArgs{
+				Comment:  "Sorry, I had trouble making that change. Could you be more specific?",
+				Owner:    handler.owner,
+				PrNumber: *pr.Number,
+				Repo:     handler.repo,
+			},
+		)
 
 		return
 	}
 
-	handler.githubClient.ReactToPRComment(handler.owner, handler.repo, *comment.ID, "🚀")
+	handler.githubClient.ReactToPRComment(
+		botgithub.ReactToPRCommentArgs{
+			Owner:     handler.owner,
+			Repo:      handler.repo,
+			CommentID: *comment.ID,
+			Reaction:  "rocket",
+		},
+	)
 }
 
 // handleCodeModification modifies code based on feedback

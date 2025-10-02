@@ -93,8 +93,14 @@ func (handler *Handler) handleNewIssue(issue *github.Issue) {
 	request := ParseIssueForRequest(title, body)
 	if err := handler.createBlogPostPR(issue, request); err != nil {
 		log.Printf("Error creating blog post PR: %v", err)
-		handler.githubClient.CommentOnIssue(handler.owner, handler.repo, *issue.Number,
-			"Sorry, I ran into an error creating the blog post. Could you check the request format?")
+		handler.githubClient.CommentOnIssue(
+			botgithub.CommentOnIssueArgs{
+				Comment:     "Sorry, I ran into an error creating the blog post. Could you check the request format?",
+				IssueNumber: *issue.Number,
+				Owner:       handler.owner,
+				Repo:        handler.repo,
+			},
+		)
 	}
 }
 
@@ -117,7 +123,13 @@ func (handler *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostR
 	}
 
 	// Create blog post struct
-	post := NewPost(request.Title, request.Topic, request.Tags, request.Draft)
+	post := NewPost(
+		request.Title,
+		request.Topic,
+		request.Tags,
+		request.Draft,
+	)
+
 	post.Content = content
 
 	// Create branch
@@ -173,11 +185,21 @@ func (handler *Handler) createBlogPostPR(issue *github.Issue, request *BlogPostR
 }
 
 // handlePRComment processes comments on pull requests
-func (handler *Handler) handlePRComment(pr *github.PullRequest, comment *github.PullRequestComment) {
+func (handler *Handler) handlePRComment(
+	pr *github.PullRequest,
+	comment *github.PullRequestComment,
+) {
 	commentBody := *comment.Body
 
 	// React with thumbs up to acknowledge
-	if err := handler.githubClient.ReactToPRComment(handler.owner, handler.repo, *comment.ID, "+1"); err != nil {
+	if err := handler.githubClient.ReactToPRComment(
+		botgithub.ReactToPRCommentArgs{
+			Owner:     handler.owner,
+			Repo:      handler.repo,
+			CommentID: *comment.ID,
+			Reaction:  "+1",
+		},
+	); err != nil {
 		log.Printf("Error reacting to PR comment: %v", err)
 	}
 
@@ -194,17 +216,33 @@ func (handler *Handler) handlePRComment(pr *github.PullRequest, comment *github.
 	if handler.isChangeRequest(commentBody) {
 		if err := handler.handleContentChange(pr, commentBody); err != nil {
 			log.Printf("Error updating content: %v", err)
-			handler.githubClient.CommentOnPR(handler.owner, handler.repo, *pr.Number,
-				"Sorry, I had trouble making that change. Could you be more specific?")
+			handler.githubClient.CommentOnPR(
+				botGithub.CommentOnPRArgs{
+					Comment:  "Sorry, I had trouble making that change. Could you be more specific?",
+					Owner:    handler.owner,
+					PrNumber: *pr.Number,
+					Repo:     handler.repo,
+				},
+			)
 		} else {
 			// React with rocket to show completion
-			handler.githubClient.ReactToPRComment(handler.owner, handler.repo, *comment.ID, "🚀")
+			handler.githubClient.ReactToPRComment(
+				botgithub.ReactToPRCommentArgs{
+					Owner:     handler.owner,
+					Repo:      handler.repo,
+					CommentID: *comment.ID,
+					Reaction:  "rocket",
+				},
+			)
 		}
 	}
 }
 
 // handleContentChange modifies blog post content based on feedback
-func (handler *Handler) handleContentChange(pr *github.PullRequest, changeRequest string) error {
+func (handler *Handler) handleContentChange(
+	pr *github.PullRequest,
+	changeRequest string,
+) error {
 	// Get files changed in this PR
 	files, err := handler.githubClient.ListPullRequestFiles(
 		botgithub.ListPullRequestFilesArgs{
@@ -233,6 +271,7 @@ func (handler *Handler) handleContentChange(pr *github.PullRequest, changeReques
 					Repo:     handler.repo,
 				},
 			)
+
 			if err != nil {
 				return fmt.Errorf("getting file content: %w", err)
 			}
@@ -268,7 +307,10 @@ func (handler *Handler) handleContentChange(pr *github.PullRequest, changeReques
 }
 
 // handleDraftStatusChange moves blog posts between drafts and posts directories
-func (handler *Handler) handleDraftStatusChange(pr *github.PullRequest, comment string) error {
+func (handler *Handler) handleDraftStatusChange(
+	pr *github.PullRequest,
+	comment string,
+) error {
 	lowerComment := strings.ToLower(comment)
 	shouldPublish := strings.Contains(lowerComment, "publish") || strings.Contains(lowerComment, "ready to publish")
 
@@ -308,6 +350,7 @@ func (handler *Handler) handleDraftStatusChange(pr *github.PullRequest, comment 
 
 			// Determine new file path
 			baseName := strings.TrimSuffix(filepath.Base(*file.Filename), ".md")
+
 			var newFilename string
 			if shouldPublish {
 				newFilename = filepath.Join("pkg", "blog_markdown_content", "posts", baseName+".md")
@@ -316,7 +359,10 @@ func (handler *Handler) handleDraftStatusChange(pr *github.PullRequest, comment 
 			}
 
 			// Create new file
-			message := fmt.Sprintf("Move blog post to %s", map[bool]string{true: "published", false: "draft"}[shouldPublish])
+			message := fmt.Sprintf(
+				"Move blog post to %s",
+				map[bool]string{true: "published", false: "draft"}[shouldPublish],
+			)
 
 			if err := handler.githubClient.CreateFile(
 				botgithub.CreateFileArgs{
@@ -347,7 +393,15 @@ func (handler *Handler) handleDraftStatusChange(pr *github.PullRequest, comment 
 
 			// Comment on success
 			statusMsg := map[bool]string{true: "published", false: "moved to drafts"}[shouldPublish]
-			handler.githubClient.CommentOnPR(handler.owner, handler.repo, *pr.Number, fmt.Sprintf("✅ Blog post %s!", statusMsg))
+
+			handler.githubClient.CommentOnPR(
+				botGithub.CommentOnPRArgs{
+					Comment:  fmt.Sprintf("✅ Blog post %s!", statusMsg),
+					Owner:    handler.owner,
+					PrNumber: *pr.Number,
+					Repo:     handler.repo,
+				},
+			)
 
 			break
 		}
@@ -358,7 +412,10 @@ func (handler *Handler) handleDraftStatusChange(pr *github.PullRequest, comment 
 
 // Helper methods
 
-func (handler *Handler) handleIssueComment(issue *github.Issue, comment *github.IssueComment) {
+func (handler *Handler) handleIssueComment(
+	issue *github.Issue,
+	comment *github.IssueComment,
+) {
 	// Handle comments on the original issue if needed
 	// For now, we mainly focus on PR comments
 }

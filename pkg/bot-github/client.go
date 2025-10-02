@@ -35,7 +35,13 @@ type CreateBranchArgs struct {
 // CreateBranch creates a new branch from the main branch
 func (client *Client) CreateBranch(args CreateBranchArgs) error {
 	// Get the main branch reference
-	mainRef, _, err := client.github.Git.GetRef(client.context, args.Owner, args.Repo, "refs/heads/main")
+	mainRef, _, err := client.github.Git.GetRef(
+		client.context,
+		args.Owner,
+		args.Repo,
+		"refs/heads/main",
+	)
+
 	if err != nil {
 		return fmt.Errorf("getting main branch: %w", err)
 	}
@@ -48,7 +54,13 @@ func (client *Client) CreateBranch(args CreateBranchArgs) error {
 		Ref: github.String("refs/heads/" + args.BranchName),
 	}
 
-	_, _, err = client.github.Git.CreateRef(client.context, args.Owner, args.Repo, newRef)
+	_, _, err = client.github.Git.CreateRef(
+		client.context,
+		args.Owner,
+		args.Repo,
+		newRef,
+	)
+
 	if err != nil {
 		return fmt.Errorf("creating branch: %w", err)
 	}
@@ -270,14 +282,21 @@ func (client *Client) ReactToIssue(args ReactToIssueArgs) error {
 	return nil
 }
 
+type ReactToPRCommentArgs struct {
+	Owner     string
+	Repo      string
+	CommentID int64
+	Reaction  string
+}
+
 // ReactToPRComment adds a reaction to a PR comment
-func (client *Client) ReactToPRComment(owner, repo string, commentID int64, reaction string) error {
+func (client *Client) ReactToPRComment(args ReactToPRCommentArgs) error {
 	_, _, err := client.github.Reactions.CreatePullRequestCommentReaction(
 		client.context,
-		owner,
-		repo,
-		commentID,
-		reaction,
+		args.Owner,
+		args.Repo,
+		args.CommentID,
+		args.Reaction,
 	)
 
 	if err != nil {
@@ -287,15 +306,22 @@ func (client *Client) ReactToPRComment(owner, repo string, commentID int64, reac
 	return nil
 }
 
+type CommentOnIssueArgs struct {
+	Comment     string
+	IssueNumber int
+	Owner       string
+	Repo        string
+}
+
 // CommentOnIssue adds a comment to an issue
-func (client *Client) CommentOnIssue(owner, repo string, issueNumber int, comment string) error {
+func (client *Client) CommentOnIssue(args CommentOnIssueArgs) error {
 	_, _, err := client.github.Issues.CreateComment(
 		client.context,
-		owner,
-		repo,
-		issueNumber,
+		args.Owner,
+		args.Repo,
+		args.IssueNumber,
 		&github.IssueComment{
-			Body: github.String(comment),
+			Body: github.String(args.Comment),
 		},
 	)
 
@@ -306,15 +332,22 @@ func (client *Client) CommentOnIssue(owner, repo string, issueNumber int, commen
 	return nil
 }
 
+type CommentOnPRArgs struct {
+	Comment  string
+	Owner    string
+	PrNumber int
+	Repo     string
+}
+
 // CommentOnPR adds a comment to a pull request
-func (client *Client) CommentOnPR(owner, repo string, prNumber int, comment string) error {
+func (client *Client) CommentOnPR(args CommentOnPRArgs) error {
 	_, _, err := client.github.Issues.CreateComment(
 		client.context,
-		owner,
-		repo,
-		prNumber,
+		args.Owner,
+		args.Repo,
+		args.PrNumber,
 		&github.IssueComment{
-			Body: github.String(comment),
+			Body: github.String(args.Comment),
 		},
 	)
 
