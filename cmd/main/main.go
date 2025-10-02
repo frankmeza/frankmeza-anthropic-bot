@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"os"
 
-	botai "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-ai"
-	botblog "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-blog"
-	botcode "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-code"
-	botgithub "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot-github"
+	botAi "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot_ai"
+	botBlog "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot_blog"
+	botCode "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot_code"
+	botGithub "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot_github"
 	"github.com/google/go-github/v57/github"
 )
 
@@ -34,11 +34,20 @@ func main() {
 		log.Fatal("Missing required environment variables")
 	}
 
-	githubClient := botgithub.NewClient(githubToken)
-	aiClient := botai.NewClient(aiAPIKey)
+	githubClient := botGithub.NewClient(githubToken)
+	aiClient := botAi.NewClient(aiAPIKey)
 
-	blogHandler := botblog.NewHandler(githubClient, aiClient, owner, repoWebsite, webhookSecret)
-	codeHandler := botcode.NewHandler(githubClient, aiClient, owner, repoBot, webhookSecret)
+	blogHandler := botBlog.NewHandler(
+		botBlog.Handler{
+			AiClient:      aiClient,
+			GithubClient:  githubClient,
+			Owner:         owner,
+			Repo:          repoWebsite,
+			WebhookSecret: webhookSecret,
+		},
+	)
+
+	codeHandler := botCode.NewHandler(githubClient, aiClient, owner, repoBot, webhookSecret)
 
 	router := newRouter(blogHandler, codeHandler, repoWebsite, repoBot, webhookSecret)
 
@@ -60,14 +69,14 @@ func main() {
 
 // router handles routing webhooks to the appropriate handler
 type router struct {
-	blogHandler   *botblog.Handler
-	codeHandler   *botcode.Handler
+	blogHandler   *botBlog.Handler
+	codeHandler   *botCode.Handler
 	repoWebsite   string
 	repoBot       string
 	webhookSecret string // Add this
 }
 
-func newRouter(blogHandler *botblog.Handler, codeHandler *botcode.Handler, repoWebsite, repoBot, webhookSecret string) *router {
+func newRouter(blogHandler *botBlog.Handler, codeHandler *botCode.Handler, repoWebsite, repoBot, webhookSecret string) *router {
 	return &router{
 		blogHandler:   blogHandler,
 		codeHandler:   codeHandler,
