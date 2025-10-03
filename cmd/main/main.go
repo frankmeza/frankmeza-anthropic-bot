@@ -35,10 +35,6 @@ func main() {
 	githubClient := botGithub.NewClient(githubToken)
 	aiClient := botAi.NewClient(aiAPIKey)
 
-	// ie which module will be used/handled?
-	// pkg/bot_blog
-	// pkg/bot_code
-
 	blogHandler := botBlog.NewHandler(
 		botBlog.Handler{
 			AiClient:      aiClient,
@@ -49,8 +45,25 @@ func main() {
 		},
 	)
 
-	codeHandler := botCode.NewHandler(githubClient, aiClient, owner, repoBot, webhookSecret)
-	router := newRouter(blogHandler, codeHandler, repoWebsite, repoBot, webhookSecret)
+	codeHandler := botCode.NewHandler(
+		botCode.Handler{
+			AiClient:      aiClient,
+			GithubClient:  githubClient,
+			Owner:         owner,
+			Repo:          repoBot,
+			WebhookSecret: webhookSecret,
+		},
+	)
+
+	router := newRouter(
+		router{
+			blogHandler:   blogHandler,
+			codeHandler:   codeHandler,
+			repoWebsite:   repoWebsite,
+			repoBot:       repoBot,
+			webhookSecret: webhookSecret,
+		},
+	)
 
 	http.HandleFunc("/webhook", router.HandleWebhook)
 	http.HandleFunc("/health", healthCheck)
@@ -75,13 +88,13 @@ type router struct {
 }
 
 // todo: create fn sig intf
-func newRouter(blogHandler *botBlog.Handler, codeHandler *botCode.Handler, repoWebsite, repoBot, webhookSecret string) *router {
+func newRouter(args router) *router {
 	return &router{
-		blogHandler:   blogHandler,
-		codeHandler:   codeHandler,
-		repoWebsite:   repoWebsite,
-		repoBot:       repoBot,
-		webhookSecret: webhookSecret,
+		blogHandler:   args.blogHandler,
+		codeHandler:   args.codeHandler,
+		repoWebsite:   args.repoWebsite,
+		repoBot:       args.repoBot,
+		webhookSecret: args.webhookSecret,
 	}
 }
 

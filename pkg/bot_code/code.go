@@ -63,11 +63,11 @@ type CodeFile struct {
 }
 
 // NewCodeFile creates a new code file structure
-func NewCodeFile(path, content, message string) *CodeFile {
+func NewCodeFile(codefile CodeFile) *CodeFile {
 	return &CodeFile{
-		Content: content,
-		Message: message,
-		Path:    path,
+		Content: codefile.Content,
+		Message: codefile.Message,
+		Path:    codefile.Path,
 	}
 }
 

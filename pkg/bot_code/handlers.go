@@ -14,31 +14,27 @@ import (
 
 // Handler manages webhook events and code operations
 type Handler struct {
-	githubClient  *botGithub.Client
-	aiClient      *botAi.Client
-	owner         string
-	repo          string
-	webhookSecret string
+	AiClient      *botAi.Client
+	GithubClient  *botGithub.Client
+	Owner         string
+	Repo          string
+	WebhookSecret string
 }
 
 // NewHandler creates a new code handler
-func NewHandler(
-	githubClient *botGithub.Client,
-	aiClient *botAi.Client,
-	owner, repo, webhookSecret string,
-) *Handler {
+func NewHandler(handlerArgs Handler) *Handler {
 	return &Handler{
-		aiClient:      aiClient,
-		githubClient:  githubClient,
-		owner:         owner,
-		repo:          repo,
-		webhookSecret: webhookSecret,
+		AiClient:      handlerArgs.AiClient,
+		GithubClient:  handlerArgs.GithubClient,
+		Owner:         handlerArgs.Owner,
+		Repo:          handlerArgs.Repo,
+		WebhookSecret: handlerArgs.WebhookSecret,
 	}
 }
 
 // HandleWebhook processes GitHub webhook events for code changes
 func (handler *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
-	payload, err := github.ValidatePayload(r, []byte(handler.webhookSecret))
+	payload, err := github.ValidatePayload(r, []byte(handler.WebhookSecret))
 	if err != nil {
 		log.Printf("webhook validation failed: %v", err)
 		http.Error(w, "validation failed", http.StatusUnauthorized)
@@ -78,10 +74,10 @@ func (handler *Handler) HandleNewIssue(issue *github.Issue) {
 		return
 	}
 
-	if err := handler.githubClient.ReactToIssue(
+	if err := handler.GithubClient.ReactToIssue(
 		botGithub.ReactToIssueArgs{
-			Owner:       handler.owner,
-			Repo:        handler.repo,
+			Owner:       handler.Owner,
+			Repo:        handler.Repo,
 			IssueNumber: *issue.Number,
 			Reaction:    "+1",
 		},
@@ -94,19 +90,22 @@ func (handler *Handler) HandleNewIssue(issue *github.Issue) {
 	if err := handler.createCodeChangePR(issue, request); err != nil {
 		log.Printf("Error creating code change PR: %v", err)
 
-		handler.githubClient.CommentOnIssue(
+		handler.GithubClient.CommentOnIssue(
 			botGithub.CommentOnIssueArgs{
 				Comment:     "Sorry, I ran into an error creating the code change. Could you check the request format?",
 				IssueNumber: *issue.Number,
-				Owner:       handler.owner,
-				Repo:        handler.repo,
+				Owner:       handler.Owner,
+				Repo:        handler.Repo,
 			},
 		)
 	}
 }
 
 // createCodeChangePR generates code and creates a PR
-func (handler *Handler) createCodeChangePR(issue *github.Issue, request *ChangeRequest) error {
+func (handler *Handler) createCodeChangePR(
+	issue *github.Issue,
+	request *ChangeRequest,
+) error {
 	codeRequest := &botAi.CodeRequest{
 		Title:       request.Title,
 		Description: request.Description,
@@ -115,21 +114,28 @@ func (handler *Handler) createCodeChangePR(issue *github.Issue, request *ChangeR
 		Tags:        request.Tags,
 	}
 
-	content, err := handler.aiClient.GenerateCode(codeRequest)
+	content, err := handler.AiClient.GenerateCode(codeRequest)
 	if err != nil {
 		return fmt.Errorf("AI code generation failed: %w", err)
 	}
 
 	targetPath := DetermineTargetPath(request)
-	codeFile := NewCodeFile(targetPath, content, GenerateCommitMessage(request, "Add"))
+
+	codeFile := NewCodeFile(
+		CodeFile{
+			Content: content,
+			Message: GenerateCommitMessage(request, "Add"),
+			Path:    targetPath,
+		},
+	)
 
 	branchName := fmt.Sprintf("ai-code-change-%d", *issue.Number)
 
-	if err := handler.githubClient.CreateBranch(
+	if err := handler.GithubClient.CreateBranch(
 		botGithub.CreateBranchArgs{
 			BranchName: branchName,
-			Owner:      handler.owner,
-			Repo:       handler.repo,
+			Owner:      handler.Owner,
+			Repo:       handler.Repo,
 		},
 	); err != nil {
 		return fmt.Errorf("creating branch: %w", err)
@@ -137,14 +143,14 @@ func (handler *Handler) createCodeChangePR(issue *github.Issue, request *ChangeR
 
 	message := codeFile.Message
 
-	if err := handler.githubClient.CreateFile(
+	if err := handler.GithubClient.CreateFile(
 		botGithub.CreateFileArgs{
 			Branch:   branchName,
 			Content:  codeFile.Content,
 			Filename: codeFile.Path,
 			Message:  message,
-			Owner:    handler.owner,
-			Repo:     handler.repo,
+			Owner:    handler.Owner,
+			Repo:     handler.Repo,
 		},
 	); err != nil {
 		return fmt.Errorf("creating file: %w", err)
@@ -152,18 +158,19 @@ func (handler *Handler) createCodeChangePR(issue *github.Issue, request *ChangeR
 
 	title := fmt.Sprintf("Add code: %s", request.Title)
 	body := handler.generatePRBody(issue, codeFile)
-	head := fmt.Sprintf("%s:%s", handler.owner, branchName)
+	head := fmt.Sprintf("%s:%s", handler.Owner, branchName)
 
-	_, err = handler.githubClient.CreatePullRequest(
+	_, err = handler.GithubClient.CreatePullRequest(
 		botGithub.CreatePullRequestArgs{
-			Owner: handler.owner,
-			Repo:  handler.repo,
-			Title: title,
+			Base:  "main",
 			Body:  body,
 			Head:  head,
-			Base:  "main",
+			Owner: handler.Owner,
+			Repo:  handler.Repo,
+			Title: title,
 		},
 	)
+
 	if err != nil {
 		return fmt.Errorf("creating PR: %w", err)
 	}
@@ -173,15 +180,15 @@ func (handler *Handler) createCodeChangePR(issue *github.Issue, request *ChangeR
 
 // HandlePRComment processes comments on pull requests
 func (handler *Handler) HandlePRComment(
-	pr *github.PullRequest,
+	pullRequest *github.PullRequest,
 	comment *github.PullRequestComment,
 ) {
 	commentBody := *comment.Body
 
-	if err := handler.githubClient.ReactToPRComment(
+	if err := handler.GithubClient.ReactToPRComment(
 		botGithub.ReactToPRCommentArgs{
-			Owner:     handler.owner,
-			Repo:      handler.repo,
+			Owner:     handler.Owner,
+			Repo:      handler.Repo,
 			CommentID: *comment.ID,
 			Reaction:  "+1",
 		},
@@ -193,25 +200,25 @@ func (handler *Handler) HandlePRComment(
 		return
 	}
 
-	if err := handler.handleCodeModification(pr, commentBody); err != nil {
+	if err := handler.handleCodeModification(pullRequest, commentBody); err != nil {
 		log.Printf("Error updating code: %v", err)
 
-		handler.githubClient.CommentOnPR(
+		handler.GithubClient.CommentOnPR(
 			botGithub.CommentOnPRArgs{
 				Comment:  "Sorry, I had trouble making that change. Could you be more specific?",
-				Owner:    handler.owner,
-				PrNumber: *pr.Number,
-				Repo:     handler.repo,
+				Owner:    handler.Owner,
+				PrNumber: *pullRequest.Number,
+				Repo:     handler.Repo,
 			},
 		)
 
 		return
 	}
 
-	handler.githubClient.ReactToPRComment(
+	handler.GithubClient.ReactToPRComment(
 		botGithub.ReactToPRCommentArgs{
-			Owner:     handler.owner,
-			Repo:      handler.repo,
+			Owner:     handler.Owner,
+			Repo:      handler.Repo,
 			CommentID: *comment.ID,
 			Reaction:  "rocket",
 		},
@@ -220,14 +227,14 @@ func (handler *Handler) HandlePRComment(
 
 // handleCodeModification modifies code based on feedback
 func (handler *Handler) handleCodeModification(
-	pr *github.PullRequest,
+	pullRequest *github.PullRequest,
 	changeRequest string,
 ) error {
-	files, err := handler.githubClient.ListPullRequestFiles(
+	files, err := handler.GithubClient.ListPullRequestFiles(
 		botGithub.ListPullRequestFilesArgs{
-			Owner:    handler.owner,
-			Repo:     handler.repo,
-			PrNumber: *pr.Number,
+			Owner:    handler.Owner,
+			Repo:     handler.Repo,
+			PrNumber: *pullRequest.Number,
 		},
 	)
 
@@ -240,12 +247,12 @@ func (handler *Handler) handleCodeModification(
 			continue
 		}
 
-		currentContent, sha, err := handler.githubClient.GetFileContent(
+		currentContent, sha, err := handler.GithubClient.GetFileContent(
 			botGithub.GetFileContentArgs{
 				Filename: *file.Filename,
-				Owner:    handler.owner,
-				Ref:      *pr.Head.Ref,
-				Repo:     handler.repo,
+				Owner:    handler.Owner,
+				Ref:      *pullRequest.Head.Ref,
+				Repo:     handler.Repo,
 			},
 		)
 
@@ -253,7 +260,11 @@ func (handler *Handler) handleCodeModification(
 			return fmt.Errorf("getting file content: %w", err)
 		}
 
-		updatedContent, err := handler.aiClient.ModifyCode(currentContent, changeRequest)
+		updatedContent, err := handler.AiClient.ModifyCode(
+			currentContent,
+			changeRequest,
+		)
+
 		if err != nil {
 			return fmt.Errorf("AI modification failed: %w", err)
 		}
@@ -263,14 +274,14 @@ func (handler *Handler) handleCodeModification(
 			sharedUtils.TruncateText(changeRequest, 50),
 		)
 
-		if err := handler.githubClient.UpdateFile(
+		if err := handler.GithubClient.UpdateFile(
 			botGithub.UpdateFileArgs{
-				Branch:   *pr.Head.Ref,
+				Branch:   *pullRequest.Head.Ref,
 				Content:  updatedContent,
 				Filename: *file.Filename,
 				Message:  message,
-				Owner:    handler.owner,
-				Repo:     handler.repo,
+				Owner:    handler.Owner,
+				Repo:     handler.Repo,
 				Sha:      sha,
 			},
 		); err != nil {
