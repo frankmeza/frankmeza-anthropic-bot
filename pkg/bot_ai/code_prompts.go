@@ -93,7 +93,8 @@ func buildCodeGenerationPrompt(request *CodeRequest) string {
 Generate complete, working Go code that can be added to the project. Include only the code - no markdown code fences or explanations.`,
 		request.Title,
 		request.Description,
-		request.TargetPath)
+		request.TargetPath,
+	)
 }
 
 // buildCodeModificationPrompt creates the prompt for modifying existing code
@@ -116,5 +117,6 @@ func buildCodeModificationPrompt(currentContent, changeRequest string) string {
 
 Return the complete modified code file. Include only the code - no markdown code fences or explanations.`,
 		currentContent,
-		changeRequest)
+		changeRequest,
+	)
 }

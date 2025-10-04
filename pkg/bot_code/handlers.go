@@ -33,20 +33,23 @@ func NewHandler(handlerArgs Handler) *Handler {
 }
 
 // HandleWebhook processes GitHub webhook events for code changes
-func (handler *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
-	payload, err := github.ValidatePayload(r, []byte(handler.WebhookSecret))
+func (handler *Handler) HandleWebhook(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	payload, err := github.ValidatePayload(request, []byte(handler.WebhookSecret))
 	if err != nil {
 		log.Printf("webhook validation failed: %v", err)
-		http.Error(w, "validation failed", http.StatusUnauthorized)
+		http.Error(writer, "validation failed", http.StatusUnauthorized)
 		return
 	}
 
 	log.Printf("Received payload of length: %d", len(payload))
 
-	event, err := github.ParseWebHook(github.WebHookType(r), payload)
+	event, err := github.ParseWebHook(github.WebHookType(request), payload)
 	if err != nil {
 		log.Printf("webhook parsing failed: %v", err)
-		http.Error(w, "parsing failed", http.StatusBadRequest)
+		http.Error(writer, "parsing failed", http.StatusBadRequest)
 		return
 	}
 
@@ -62,7 +65,7 @@ func (handler *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writer.WriteHeader(http.StatusOK)
 }
 
 // HandleNewIssue processes new GitHub issues for code changes

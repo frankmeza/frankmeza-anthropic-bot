@@ -20,14 +20,14 @@ func healthCheck(writer http.ResponseWriter, request *http.Request) {
 }
 
 func main() {
-	githubToken := os.Getenv("GITHUB_TOKEN")
 	aiAPIKey := os.Getenv("AI_API_KEY")
+	githubToken := os.Getenv("GITHUB_TOKEN")
 	owner := os.Getenv("GITHUB_OWNER")
 	repoWebsite := os.Getenv("GITHUB_REPO_WEBSITE")
 	repoBot := os.Getenv("GITHUB_REPO_BOT")
 	webhookSecret := os.Getenv("GITHUB_WEBHOOK_SECRET")
 
-	if githubToken == "" || aiAPIKey == "" || owner == "" || repoWebsite == "" || repoBot == "" {
+	if aiAPIKey == "" || githubToken == "" || owner == "" || repoWebsite == "" || repoBot == "" {
 		log.Fatal("Missing required environment variables")
 	}
 
@@ -87,7 +87,6 @@ type router struct {
 	webhookSecret string // Add this
 }
 
-// todo: create fn sig intf
 func newRouter(args router) *router {
 	return &router{
 		blogHandler:   args.blogHandler,
@@ -99,6 +98,7 @@ func newRouter(args router) *router {
 }
 
 func (router *router) HandleWebhook(writer http.ResponseWriter, request *http.Request) {
+	// read entire request body
 	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		log.Printf("Error reading body: %v", err)
@@ -106,7 +106,7 @@ func (router *router) HandleWebhook(writer http.ResponseWriter, request *http.Re
 		return
 	}
 
-	// Parse to get repo name (no validation yet)
+	// parse the event type of the request
 	event, err := github.ParseWebHook(github.WebHookType(request), body)
 	if err != nil {
 		log.Printf("Webhook parsing failed: %v", err)
@@ -121,6 +121,8 @@ func (router *router) HandleWebhook(writer http.ResponseWriter, request *http.Re
 		repoName = *eventType.Repo.FullName
 	case *github.PullRequestReviewCommentEvent:
 		repoName = *eventType.Repo.FullName
+	default:
+		log.Printf("Unknown repo detected 🛸")
 	}
 
 	log.Printf("Detected repo: %s", repoName)

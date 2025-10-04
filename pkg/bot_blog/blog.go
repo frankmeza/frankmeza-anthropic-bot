@@ -96,9 +96,12 @@ func generateKey(title string) string {
 	// Remove special characters, keep only alphanumeric and hyphens
 	var result strings.Builder
 	for _, rune := range key {
-		if sharedUtils.IsRuneDashCharacter(rune) ||
-			sharedUtils.IsRuneNumerical(rune) ||
-			sharedUtils.IsRuneDashCharacter(rune) {
+		isAlphaNumericOrDash :=
+			sharedUtils.IsRuneDashCharacter(rune) ||
+				sharedUtils.IsRuneNumerical(rune) ||
+				sharedUtils.IsRuneDashCharacter(rune)
+
+		if isAlphaNumericOrDash {
 			result.WriteRune(rune)
 		}
 	}

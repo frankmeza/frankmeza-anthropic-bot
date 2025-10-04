@@ -46,7 +46,8 @@ Please modify the blog post to address this request. Maintain the same:
 
 Return the complete updated blog post including the original frontmatter.`,
 		currentContent,
-		changeRequest)
+		changeRequest,
+	)
 }
 
 // buildSummaryPrompt creates a prompt for generating blog post summaries
@@ -58,7 +59,8 @@ Content: %s
 
 Write a 1-2 sentence summary that captures the main topic and value for readers. Keep it casual but informative.`,
 		title,
-		content)
+		content,
+	)
 }
 
 // buildTagsPrompt creates a prompt for suggesting relevant tags
@@ -70,5 +72,6 @@ Content: %s
 
 Return only the tags as a comma-separated list. Focus on technical topics, programming languages, frameworks, and concepts mentioned.`,
 		title,
-		content)
+		content,
+	)
 }
