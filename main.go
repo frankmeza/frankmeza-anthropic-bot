@@ -2,16 +2,17 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"os"
 
 	botAi "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot_ai"
 	botBlog "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot_blog"
 	botCode "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot_code"
 	botGithub "github.com/frankmeza/frankmeza-anthropic-bot/pkg/bot_github"
 	"github.com/google/go-github/v57/github"
+	"github.com/joho/godotenv"
 )
 
 func healthCheck(writer http.ResponseWriter, request *http.Request) {
@@ -20,28 +21,25 @@ func healthCheck(writer http.ResponseWriter, request *http.Request) {
 }
 
 func main() {
-	aiAPIKey := os.Getenv("AI_API_KEY")
-	githubToken := os.Getenv("GITHUB_TOKEN")
-	owner := os.Getenv("GITHUB_OWNER")
-	repoWebsite := os.Getenv("GITHUB_REPO_WEBSITE")
-	repoBot := os.Getenv("GITHUB_REPO_BOT")
-	webhookSecret := os.Getenv("GITHUB_WEBHOOK_SECRET")
+	envFile, _ := godotenv.Read(".env")
 
-	if aiAPIKey == "" || githubToken == "" || owner == "" || repoWebsite == "" || repoBot == "" {
-		log.Fatal("Missing required environment variables")
+	for key, value := range envFile {
+		if value == "" {
+			fmt.Sprint("Missing required environment variable ", key)
+		}
 	}
 
 	// create vendor client instances
-	githubClient := botGithub.NewClient(githubToken)
-	aiClient := botAi.NewClient(aiAPIKey)
+	githubClient := botGithub.NewClient(envFile["GITHUB_TOKEN"])
+	aiClient := botAi.NewClient(envFile["AI_API_KEY"])
 
 	blogHandler := botBlog.NewHandler(
 		botBlog.Handler{
 			AiClient:      aiClient,
 			GithubClient:  githubClient,
-			Owner:         owner,
-			Repo:          repoWebsite,
-			WebhookSecret: webhookSecret,
+			Owner:         envFile["GITHUB_OWNER"],
+			Repo:          envFile["GITHUB_REPO_WEBSITE"],
+			WebhookSecret: envFile["GITHUB_WEBHOOK_SECRET"],
 		},
 	)
 
@@ -49,9 +47,9 @@ func main() {
 		botCode.Handler{
 			AiClient:      aiClient,
 			GithubClient:  githubClient,
-			Owner:         owner,
-			Repo:          repoBot,
-			WebhookSecret: webhookSecret,
+			Owner:         envFile["GITHUB_OWNER"],
+			Repo:          envFile["GITHUB_REPO_WEBSITE"],
+			WebhookSecret: envFile["GITHUB_WEBHOOK_SECRET"],
 		},
 	)
 
@@ -59,22 +57,27 @@ func main() {
 		router{
 			blogHandler:   blogHandler,
 			codeHandler:   codeHandler,
-			repoWebsite:   repoWebsite,
-			repoBot:       repoBot,
-			webhookSecret: webhookSecret,
+			repoWebsite:   envFile["GITHUB_REPO_WEBSITE"],
+			repoBot:       envFile["GITHUB_REPO_BOT"],
+			webhookSecret: envFile["GITHUB_WEBHOOK_SECRET"],
 		},
 	)
 
 	http.HandleFunc("/webhook", router.HandleWebhook)
 	http.HandleFunc("/health", healthCheck)
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	port := "8080"
 
 	log.Printf("AI Blog Bot starting on :%s", port)
-	log.Printf("Monitoring repos: %s/%s (blog), %s/%s (code)", owner, repoWebsite, owner, repoBot)
+
+	log.Printf(
+		"Monitoring repos: %s/%s (blog), %s/%s (code)",
+		envFile["GITHUB_OWNER"],
+		envFile["GITHUB_REPO_WEBSITE"],
+		envFile["GITHUB_OWNER"],
+		envFile["GITHUB_REPO_BOT"],
+	)
+
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 

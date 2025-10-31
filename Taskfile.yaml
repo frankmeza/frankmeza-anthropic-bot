@@ -8,11 +8,11 @@ tasks:
 
   build:
     cmds:
-      - go build cmd/main/main.go
+      - go build main.go
 
   dev:
     cmds:
-      # live reload version
+      - source .env
       - air -c .air.toml
 
   install:
