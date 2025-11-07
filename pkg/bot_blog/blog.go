@@ -124,9 +124,9 @@ func ParseIssueForRequest(title, body string) *BlogPostRequest {
 	// Extract any mentioned tags from body
 	if strings.Contains(strings.ToLower(body), "tags:") {
 		// Simple tag extraction - look for "tags: golang, htmx, web"
-		lines := strings.Split(body, "\n")
+		lines := strings.SplitSeq(body, "\n")
 
-		for _, line := range lines {
+		for line := range lines {
 			if strings.HasPrefix(strings.ToLower(strings.TrimSpace(line)), "tags:") {
 				tagsPart := strings.TrimPrefix(strings.ToLower(line), "tags:")
 				tags := strings.Split(tagsPart, ",")
