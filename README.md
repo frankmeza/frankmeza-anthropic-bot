@@ -17,6 +17,14 @@ Your AI bot monitors two repositories and responds to GitHub issues:
 
 ---
 
+## Technical Setup (Local)
+
+There's not a great reason to host this anywhere just yet, and I'm running things locally like this:
+
+1. Start the project on a local port with `task dev` or `task build; task run-binary`
+1. Run an instance of ngrok on the local port for the bot: `ngrok http 8080`
+1. Now you are able to follow the usage guide.
+
 ## Blog Posts (frankmeza/frankmeza)
 
 ### Issue Format
