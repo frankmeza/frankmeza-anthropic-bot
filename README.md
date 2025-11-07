@@ -23,7 +23,8 @@ There's not a great reason to host this anywhere just yet, and I'm running thing
 
 1. Start the project on a local port with `task dev` or `task build; task run-binary`
 1. Run an instance of ngrok on the local port for the bot: `ngrok http 8080`
-1. Now you are able to follow the usage guide.
+1. Now add the ngrok url to the webhook settings of the project in development in Github.
+1. You are able to follow the usage guide.
 
 ## Blog Posts (frankmeza/frankmeza)
 
